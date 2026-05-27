@@ -1,0 +1,68 @@
+export const BADGE_DEFINITIONS = [
+  {
+    key:         'first_timer',
+    emoji:       '🥇',
+    name:        'First Timer',
+    description: 'Attend your first event',
+    points:      25,
+    unlockHint:  'Show up to any event',
+  },
+  {
+    key:         'on_fire',
+    emoji:       '🔥',
+    name:        'On Fire',
+    description: 'Attend events 3 weeks in a row',
+    points:      50,
+    unlockHint:  'Keep your weekly streak alive',
+  },
+  {
+    key:         'host',
+    emoji:       '👑',
+    name:        'Host',
+    description: 'Successfully host your first event rated above 3.0⭐',
+    points:      50,
+    unlockHint:  'Host a great event and earn good reviews',
+  },
+  {
+    key:         'social_butterfly',
+    emoji:       '🦋',
+    name:        'Social Butterfly',
+    description: 'Message in 10 different event group chats',
+    points:      40,
+    unlockHint:  'Join the conversation at different events',
+  },
+  {
+    key:         'specialist',
+    emoji:       '🏹',
+    name:        'Specialist',
+    description: 'Attend 5 events in the same category',
+    points:      45,
+    unlockHint:  'Master your favourite type of event',
+  },
+  {
+    key:         'early_bird',
+    emoji:       '⚡',
+    name:        'Early Bird',
+    description: 'Join 5 events more than 24 hours in advance',
+    points:      30,
+    unlockHint:  'Plan ahead and commit early',
+  },
+  {
+    key:         'diamond',
+    emoji:       '💎',
+    name:        'Diamond',
+    description: 'Maintain a Trusted score (1200+) for 30 consecutive days',
+    points:      100,
+    unlockHint:  'Stay in Trusted tier for a full month',
+  },
+  {
+    key:         'explorer',
+    emoji:       '🚀',
+    name:        'Explorer',
+    description: 'Attend events in 5 different categories',
+    points:      60,
+    unlockHint:  'Branch out and try something new',
+  },
+] as const;
+
+export type BadgeKey = typeof BADGE_DEFINITIONS[number]['key'];
