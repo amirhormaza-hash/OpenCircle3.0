@@ -24,6 +24,7 @@ import { Ionicons } from "@expo/vector-icons";
 import SettingRow from "@/components/SettingRow";
 import { supabase } from "@/lib/supabase/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
 const NOTIF_STORAGE_KEY = "opencircle:notifications_enabled";
 
@@ -858,7 +859,7 @@ export default function ProfileSettings() {
               <SettingRow
                 icon="person-outline"
                 label="Edit Profile"
-                iconColor="#7C3AED"
+                iconColor="#FF6B00"
                 onPress={() => setEditProfileVisible(true)}
               />
               <View style={styles.divider} />
@@ -893,14 +894,14 @@ export default function ProfileSettings() {
                 icon="document-text-outline"
                 label="Terms of Service"
                 iconColor="#8B5CF6"
-                onPress={() => Linking.openURL("https://opencircle.app/terms")}
+                onPress={() => Linking.openURL("https://amirhormaza-hash.github.io/OpenCircle3.0/terms.html")}
               />
               <View style={styles.divider} />
               <SettingRow
                 icon="lock-closed-outline"
                 label="Privacy Policy"
                 iconColor="#EC4899"
-                onPress={() => Linking.openURL("https://opencircle.app/privacy")}
+                onPress={() => Linking.openURL("https://amirhormaza-hash.github.io/OpenCircle3.0/privacy.html")}
               />
             </View>
           </View>
@@ -935,6 +936,12 @@ export default function ProfileSettings() {
               <Text style={styles.deleteText}>Delete Account</Text>
             </TouchableOpacity>
           </View>
+
+          {/* App version — expoConfig.version, plus native build number when present */}
+          <Text style={styles.versionText}>
+            OpenCircle v{Constants.expoConfig?.version ?? "1.0.0"}
+            {Constants.nativeBuildVersion ? ` (${Constants.nativeBuildVersion})` : ""}
+          </Text>
         </ScrollView>
       </SafeAreaView>
     </>
@@ -944,6 +951,13 @@ export default function ProfileSettings() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F13" },
   content: { padding: 20, paddingBottom: 40 },
+  versionText: {
+    fontSize: 12,
+    fontFamily: "Nunito_600SemiBold",
+    color: "#5A5A78",
+    textAlign: "center",
+    marginTop: 8,
+  },
   deletingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15,15,19,0.92)",
