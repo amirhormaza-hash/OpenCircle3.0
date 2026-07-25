@@ -1,6 +1,4 @@
-// app/(tabs)/messages/index.tsx
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,10 +7,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  SectionList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { supabase } from '../../../lib/supabase/client';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -25,149 +25,223 @@ interface EventItem {
   owner_username?: string | null;
 }
 
+interface DmItem {
+  chatId: string;
+  otherId: string;
+  otherName: string;
+  otherUsername: string;
+  otherAvatar?: string | null;
+  lastMessage?: string | null;
+  lastAt?: string | null;
+}
+
+// SectionList with heterogeneous item types — use a union and narrow inside renderItem
+type AnyItem = DmItem | EventItem;
+type Section = { key: 'dms' | 'events'; title: string; data: AnyItem[] };
+
 export default function MessagesScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [eventItems, setEventItems] = useState<EventItem[]>([]);
+  const [dmItems, setDmItems]       = useState<DmItem[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      setEvents([]);
+      setEventItems([]);
+      setDmItems([]);
       setLoading(false);
       return;
     }
 
-    fetchAttendedEvents();
+    // Capture userId so channel callbacks don't close over stale state
+    const uid = user.id;
+
+    fetchAll(uid);
 
     const attendeesChannel = supabase
-      .channel('messages-event-attendees')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'event_attendees',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchAttendedEvents();
-        }
-      )
+      .channel(`msg-attendees-${uid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees', filter: `user_id=eq.${uid}` },
+        () => fetchAll(uid))
+      .subscribe();
+
+    const dmChannel = supabase
+      .channel(`msg-dm-${uid}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' },
+        () => fetchDms(uid).then(() => { setLoading(false); setRefreshing(false); }))
       .subscribe();
 
     return () => {
       supabase.removeChannel(attendeesChannel);
+      supabase.removeChannel(dmChannel);
     };
   }, [user?.id]);
 
-  async function fetchAttendedEvents() {
-    if (!user) {
-      setLoading(false);
-      setRefreshing(false);
+  const fetchAll = useCallback(async (uid: string) => {
+    await Promise.all([fetchEventChats(uid), fetchDms(uid)]);
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
+
+  async function fetchEventChats(uid: string) {
+    const { data: attendeeRows } = await supabase
+      .from('event_attendees')
+      .select('event_id')
+      .eq('user_id', uid);
+
+    if (!attendeeRows || attendeeRows.length === 0) {
+      setEventItems([]);
       return;
     }
 
-    try {
-      setLoading((prev) => (refreshing ? prev : true));
+    const eventIds = attendeeRows.map((r: any) => r.event_id);
+    const { data: eventDetails } = await supabase
+      .from('event')
+      .select('id, name, date_time, address, profile_id')
+      .in('id', eventIds)
+      .order('date_time', { ascending: true });
 
-      const { data: attendeeRows, error: attendeeError } = await supabase
-        .from('event_attendees')
-        .select('event_id')
-        .eq('user_id', user.id);
+    const ownerIds = [...new Set((eventDetails ?? []).map((e: any) => e.profile_id).filter(Boolean))];
+    const { data: ownerProfiles } = ownerIds.length > 0
+      ? await supabase.from('profiles').select('id, username').in('id', ownerIds)
+      : { data: [] };
 
-      if (attendeeError) throw attendeeError;
+    const usernameMap: Record<string, string> = {};
+    (ownerProfiles ?? []).forEach((p: any) => { usernameMap[p.id] = p.username; });
 
-      if (!attendeeRows || attendeeRows.length === 0) {
-        setEvents([]);
-        return;
-      }
+    setEventItems((eventDetails ?? []).map((e: any) => ({
+      ...e,
+      owner_username: usernameMap[e.profile_id] ?? null,
+    })));
+  }
 
-      const eventIds = attendeeRows.map((row) => row.event_id);
+  async function fetchDms(uid: string) {
+    const { data: chats } = await supabase
+      .from('direct_chats')
+      .select('id, user1_id, user2_id')
+      .or(`user1_id.eq.${uid},user2_id.eq.${uid}`);
 
-      const { data: eventDetails, error: eventsError } = await supabase
-        .from('event')
-        .select('id, name, date_time, address, profile_id')
-        .in('id', eventIds)
-        .order('date_time', { ascending: true });
-
-      if (eventsError) throw eventsError;
-
-      const ownerIds = [...new Set((eventDetails || []).map((e: any) => e.profile_id).filter(Boolean))];
-      const { data: ownerProfiles } = ownerIds.length > 0
-        ? await supabase.from('profiles').select('id, username').in('id', ownerIds)
-        : { data: [] };
-
-      const usernameMap: Record<string, string> = {};
-      (ownerProfiles || []).forEach((p: any) => { usernameMap[p.id] = p.username; });
-
-      setEvents((eventDetails || []).map((e: any) => ({
-        ...e,
-        owner_username: usernameMap[e.profile_id] ?? null,
-      })));
-    } catch (error) {
-      console.error('Error fetching attended events:', error);
-      setEvents([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    if (!chats || chats.length === 0) {
+      setDmItems([]);
+      return;
     }
+
+    const otherIds = chats.map((c: any) => c.user1_id === uid ? c.user2_id : c.user1_id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, username, profile_image_url')
+      .in('id', otherIds);
+
+    const profileMap: Record<string, any> = {};
+    (profiles ?? []).forEach((p: any) => { profileMap[p.id] = p; });
+
+    // For each chat, get last message
+    const dmList = await Promise.all(
+      (chats as any[]).map(async (c) => {
+        const otherId = c.user1_id === uid ? c.user2_id : c.user1_id;
+        const p = profileMap[otherId] ?? {};
+
+        const { data: lastMsgs } = await supabase
+          .from('direct_messages')
+          .select('content, created_at')
+          .eq('chat_id', c.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const last = lastMsgs?.[0] ?? null;
+        return {
+          chatId:        c.id,
+          otherId,
+          otherName:     p.name ?? 'User',
+          otherUsername: p.username ?? '',
+          otherAvatar:   p.profile_image_url ?? null,
+          lastMessage:   last?.content ?? null,
+          lastAt:        last?.created_at ?? null,
+        } satisfies DmItem;
+      })
+    );
+
+    // Sort newest first
+    dmList.sort((a, b) => {
+      if (!a.lastAt && !b.lastAt) return 0;
+      if (!a.lastAt) return 1;
+      if (!b.lastAt) return -1;
+      return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime();
+    });
+
+    setDmItems(dmList);
   }
 
   function onRefresh() {
+    if (!user) return;
     setRefreshing(true);
-    fetchAttendedEvents();
+    fetchAll(user.id);
   }
 
-  function openChat(eventId: string) {
-    router.push(`/(tabs)/messages/${eventId}`);
-  }
-
-  function renderItem({ item }: { item: EventItem }) {
+  // ── Render helpers ──────────────────────────────────────────────────────────
+  function renderDm({ item }: { item: DmItem }) {
     return (
       <TouchableOpacity
-        style={styles.chatCard}
+        style={styles.card}
         activeOpacity={0.85}
-        onPress={() => openChat(item.id)}
+        onPress={() => router.push(`/(tabs)/messages/dm/${item.otherId}` as any)}
       >
-        <View style={styles.chatCardLeft}>
-          <View style={styles.chatAvatar}>
-            <Ionicons name="calendar" size={22} color="#FF6B00" />
-          </View>
-          <View style={styles.chatCardBody}>
-            <Text style={styles.eventName} numberOfLines={1}>{item.name}</Text>
-            {item.owner_username ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={13} color="#5A5A78" style={styles.detailIcon} />
-                <Text style={styles.eventDetail} numberOfLines={1}>@{item.owner_username}</Text>
-              </View>
-            ) : null}
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={13} color="#5A5A78" style={styles.detailIcon} />
-              <Text style={styles.eventDetail} numberOfLines={1}>{formatDateTime(item.date_time)}</Text>
+        <View style={styles.cardLeft}>
+          {item.otherAvatar ? (
+            <Image source={{ uri: item.otherAvatar }} style={styles.dmAvatar} contentFit="cover" />
+          ) : (
+            <View style={[styles.dmAvatar, styles.avatarFallback]}>
+              <Ionicons name="person" size={20} color="#4A4A6A" />
             </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={13} color="#5A5A78" style={styles.detailIcon} />
-              <Text style={styles.eventDetail} numberOfLines={1}>{item.address}</Text>
-            </View>
+          )}
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.otherName}</Text>
+            <Text style={styles.cardSub} numberOfLines={1}>
+              {item.lastMessage ?? 'No messages yet'}
+            </Text>
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#5A5A78" />
+        <View style={styles.cardRight}>
+          {item.lastAt && <Text style={styles.cardTime}>{shortTime(item.lastAt)}</Text>}
+          <Ionicons name="chevron-forward" size={16} color="#5A5A78" />
+        </View>
       </TouchableOpacity>
     );
   }
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="chatbubbles-outline" size={54} color="#2E2E40" />
-      <Text style={styles.emptyTitle}>No chats yet</Text>
-      <Text style={styles.emptyText}>
-        Join an event to start chatting with attendees.
-      </Text>
-    </View>
-  );
+  function renderEvent({ item }: { item: EventItem }) {
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.85}
+        onPress={() => router.push(`/(tabs)/messages/${item.id}` as any)}
+      >
+        <View style={styles.cardLeft}>
+          <View style={styles.eventIcon}>
+            <Ionicons name="calendar" size={22} color="#FF6B00" />
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+            {item.owner_username && (
+              <Text style={styles.cardSub} numberOfLines={1}>@{item.owner_username}</Text>
+            )}
+            <Text style={styles.cardSub} numberOfLines={1}>{formatDateTime(item.date_time)}</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color="#5A5A78" />
+      </TouchableOpacity>
+    );
+  }
+
+  function renderSectionHeader({ section }: { section: Section }) {
+    return (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeaderText}>{section.title}</Text>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -181,46 +255,78 @@ export default function MessagesScreen() {
     return (
       <View style={styles.center}>
         <Ionicons name="person-outline" size={48} color="#2E2E40" />
-        <Text style={styles.emptyText}>Log in to see your event chats.</Text>
+        <Text style={styles.emptyText}>Log in to see your messages.</Text>
       </View>
     );
   }
+
+  const sections: Section[] = [];
+  if (dmItems.length > 0) {
+    sections.push({ key: 'dms', title: 'Direct Messages', data: dmItems as AnyItem[] });
+  }
+  if (eventItems.length > 0) {
+    sections.push({ key: 'events', title: 'Event Chats', data: eventItems as AnyItem[] });
+  }
+
+  const isEmpty = dmItems.length === 0 && eventItems.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        <Text style={styles.headerSubtitle}>{events.length} active chat{events.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.headerSubtitle}>
+          {dmItems.length} DM{dmItems.length !== 1 ? 's' : ''} · {eventItems.length} event chat{eventItems.length !== 1 ? 's' : ''}
+        </Text>
       </View>
 
-      <FlatList
-        data={events}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={[styles.list, events.length === 0 && styles.listEmpty]}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FF6B00"
-            colors={['#FF6B00']}
-          />
-        }
-      />
+      {isEmpty ? (
+        <View style={styles.center}>
+          <Ionicons name="chatbubbles-outline" size={54} color="#2E2E40" />
+          <Text style={styles.emptyTitle}>No messages yet</Text>
+          <Text style={styles.emptyText}>
+            Join an event or message someone from their profile.
+          </Text>
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item: any) => item.chatId ?? item.id}
+          renderItem={({ item, section }: { item: AnyItem; section: Section }) =>
+            section.key === 'dms'
+              ? renderDm({ item: item as DmItem })
+              : renderEvent({ item: item as EventItem })
+          }
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={styles.list}
+          stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF6B00"
+              colors={['#FF6B00']}
+            />
+          }
+        />
+      )}
     </SafeAreaView>
   );
+}
+
+function shortTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 function formatDateTime(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return parsed.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({
@@ -254,30 +360,62 @@ const styles = StyleSheet.create({
     color: '#5A5A78',
     marginTop: 2,
   },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5A5A78',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
   list: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
   },
-  listEmpty: {
-    flexGrow: 1,
-  },
-  chatCard: {
+  card: {
     backgroundColor: '#1A1A24',
     borderRadius: 16,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#2E2E40',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  chatCardLeft: {
+  cardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     gap: 12,
   },
-  chatAvatar: {
+  cardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cardTime: {
+    fontSize: 11,
+    color: '#5A5A78',
+  },
+  dmAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    flexShrink: 0,
+  },
+  avatarFallback: {
+    backgroundColor: '#1E1E28',
+    borderWidth: 1,
+    borderColor: '#2E2E40',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eventIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -286,35 +424,20 @@ const styles = StyleSheet.create({
     borderColor: '#3D1A10',
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
-  chatCardBody: {
+  cardBody: {
     flex: 1,
   },
-  eventName: {
-    fontSize: 16,
+  cardTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#F0F0FA',
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  detailIcon: {
-    marginRight: 4,
-  },
-  eventDetail: {
+  cardSub: {
     fontSize: 13,
     color: '#7878A0',
-    flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
-    gap: 10,
   },
   emptyTitle: {
     fontSize: 18,

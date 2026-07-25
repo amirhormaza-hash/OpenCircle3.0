@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Animated,
   ActivityIndicator,
   StatusBar,
+  Modal,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +17,61 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase/client';
 import { BADGE_DEFINITIONS } from '../../constants/badges';
+import { REPUTATION_TAGS } from '../../constants/reputationTags';
 import BadgeItem from '../../components/BadgeItem';
+import ReputationTag from '../../components/ReputationTag';
+import StreakCard from '../../components/StreakCard';
+import EventHistoryCard from '../../components/EventHistoryCard';
+import { useAuth } from '../../context/AuthContext';
+import {
+  fetchRateableEvent,
+  submitUserRating,
+  fetchReputationTags,
+  fetchSkillLevels,
+  fetchEventHistory,
+  fetchStreak,
+  fetchEventStats,
+  fetchUserReputationScore,
+} from '../../lib/profileQueries';
+
+const LEVEL_TO_PERCENT: Record<string, number> = {
+  'For All': 10,
+  Newbie: 20,
+  Beginner: 35,
+  Intermediate: 55,
+  Advanced: 75,
+  Expert: 100,
+};
+
+function TrustScorePill({ score }: { score: number }) {
+  let color = '#7a7a9a';
+  let label = 'New';
+  if (score >= 4.5)      { color = '#34d399'; label = 'Excellent'; }
+  else if (score >= 4.0) { color = '#F97316'; label = 'Great'; }
+  else if (score >= 3.0) { color = '#fbbf24'; label = 'Good'; }
+  return (
+    <View style={[tpStyles.pill, { borderColor: color + '40', backgroundColor: color + '18' }]}>
+      <Text style={[tpStyles.text, { color }]}>★ {score.toFixed(1)} · {label}</Text>
+    </View>
+  );
+}
+const tpStyles = StyleSheet.create({
+  pill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1 },
+  text: { fontSize: 12, fontWeight: '700' },
+});
+
+function EmptyHint({ icon, text }: { icon: string; text: string }) {
+  return (
+    <View style={ehStyles.row}>
+      <Ionicons name={icon as 'star'} size={16} color="#3a3a50" />
+      <Text style={ehStyles.text}>{text}</Text>
+    </View>
+  );
+}
+const ehStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 4 },
+  text: { fontSize: 13, color: '#3a3a50', fontStyle: 'italic' },
+});
 
 type PublicProfile = {
   id: string;
@@ -29,15 +86,63 @@ type PublicProfile = {
 
 type BadgeRow = { badge_key: string; seen: boolean };
 
-export default function UserProfileScreen() {
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+type HistoryEvent = {
+  id: string;
+  name: string;
+  date_time: string;
+  address?: string;
+  category?: string;
+  isHosted: boolean;
+};
 
-  const [profile, setProfile]     = useState<PublicProfile | null>(null);
-  const [badges, setBadges]       = useState<BadgeRow[]>([]);
-  const [attended, setAttended]   = useState(0);
-  const [hosted, setHosted]       = useState(0);
-  const [loading, setLoading]     = useState(true);
-  const [notFound, setNotFound]   = useState(false);
+export default function UserProfileScreen() {
+  const { userId: rawUserId } = useLocalSearchParams<{ userId: string }>();
+  const userId = Array.isArray(rawUserId) ? rawUserId[0] : rawUserId ?? '';
+  const { user: me } = useAuth();
+
+  const [profile, setProfile]               = useState<PublicProfile | null>(null);
+  const [badges, setBadges]                 = useState<BadgeRow[]>([]);
+  const [streak, setStreak]                 = useState<{ current_streak: number; longest_streak: number } | null>(null);
+  const [reputationTags, setReputationTags] = useState<Record<string, number>>({});
+  const [skillLevels, setSkillLevels]       = useState<Record<string, string>>({});
+  const [eventHistory, setEventHistory]     = useState<HistoryEvent[]>([]);
+  const [stats, setStats]                   = useState({ attended: 0, hosted: 0, vouches: 0 });
+  const [repScore, setRepScore]             = useState<number | 'New' | null>(null);
+  const [loading, setLoading]               = useState(true);
+  const [notFound, setNotFound]             = useState(false);
+
+  // Rating flow
+  const [rateableEvent, setRateableEvent] = useState<{ id: string; name: string } | null>(null);
+  const [showModal, setShowModal]         = useState(false);
+  const [selectedStars, setSelectedStars] = useState(0);
+  const [selectedTags, setSelectedTags]   = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting]       = useState(false);
+
+  const sectionAnims = useRef(Array.from({ length: 7 }, () => new Animated.Value(0))).current;
+  const barAnims     = useRef<Record<string, Animated.Value>>({});
+
+  function runStagger() {
+    Animated.parallel(
+      sectionAnims.map((anim, i) =>
+        Animated.timing(anim, { toValue: 1, duration: 400, delay: i * 60, useNativeDriver: true })
+      )
+    ).start();
+  }
+
+  useEffect(() => {
+    if (!loading) runStagger();
+  }, [loading]);
+
+  useEffect(() => {
+    Object.entries(skillLevels).forEach(([cat, level]) => {
+      if (!barAnims.current[cat]) barAnims.current[cat] = new Animated.Value(0);
+      Animated.timing(barAnims.current[cat], {
+        toValue: (LEVEL_TO_PERCENT[level] ?? 10) / 100,
+        duration: 800,
+        useNativeDriver: false,
+      }).start();
+    });
+  }, [skillLevels]);
 
   useEffect(() => {
     if (userId) load();
@@ -46,10 +151,8 @@ export default function UserProfileScreen() {
   async function load() {
     setLoading(true);
     setNotFound(false);
+    sectionAnims.forEach(a => a.setValue(0));
 
-    // Select only columns guaranteed to exist (migration 001).
-    // behavior_score / trust_tier are added in migration 002 — omit them here
-    // to avoid a schema-cache error if that migration hasn't run yet.
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('id, name, username, profile_image_url, bio, location, trust_score, is_verified')
@@ -57,155 +160,379 @@ export default function UserProfileScreen() {
       .single();
 
     if (profileError || !profileData) {
-      console.warn('user-profile load error:', profileError?.message ?? 'no data', 'userId:', userId);
       setNotFound(true);
       setLoading(false);
       return;
     }
 
+    try {
+    const isOwnProfile = me?.id === userId;
+
     const [
-      { data: badgeData },
-      { count: attendCount },
-      { count: hostCount },
+      statsData,
+      badgeData,
+      streakData,
+      repTags,
+      skills,
+      history,
+      rateEvent,
+      repResult,
     ] = await Promise.all([
+      fetchEventStats(userId),
       supabase.from('user_badges').select('badge_key, seen').eq('user_id', userId),
-      supabase.from('event_attendees').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('event').select('*', { count: 'exact', head: true }).eq('profile_id', userId),
+      fetchStreak(userId),
+      fetchReputationTags(userId),
+      fetchSkillLevels(userId),
+      fetchEventHistory(userId),
+      me && !isOwnProfile ? fetchRateableEvent(me.id, userId) : Promise.resolve(null),
+      fetchUserReputationScore(userId),
     ]);
 
+    const vouchCount = Object.values(repTags as Record<string, number>).reduce((a, b) => a + b, 0);
+
     setProfile(profileData);
-    setBadges(badgeData ?? []);
-    setAttended(attendCount ?? 0);
-    setHosted(hostCount ?? 0);
+    setStats({ ...statsData, vouches: vouchCount });
+    setBadges((badgeData.data as BadgeRow[]) ?? []);
+    setStreak(streakData);
+    setReputationTags(repTags);
+    setSkillLevels(skills);
+    setEventHistory(history as HistoryEvent[]);
+    setRateableEvent(rateEvent);
+    setRepScore(repResult);
     setLoading(false);
+    } catch {
+      setLoading(false);
+    }
+  }
+
+  function toggleTag(tag: string) {
+    setSelectedTags(prev => {
+      const next = new Set(prev);
+      next.has(tag) ? next.delete(tag) : next.add(tag);
+      return next;
+    });
+  }
+
+  async function handleSubmit() {
+    if (!me || !rateableEvent || selectedStars === 0) return;
+    setSubmitting(true);
+    const { error } = await submitUserRating(
+      me.id,
+      userId,
+      rateableEvent.id,
+      selectedStars as 1 | 2 | 3 | 4 | 5,
+      [...selectedTags],
+    );
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not submit rating. Please try again.');
+      return;
+    }
+    setShowModal(false);
+    setRateableEvent(null);
+    Alert.alert('Submitted!', `Your rating for ${profile?.name} has been saved.`);
+  }
+
+  function fadeSection(index: number, children: React.ReactNode) {
+    const anim = sectionAnims[index];
+    return (
+      <Animated.View style={{
+        opacity: anim,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+      }}>
+        {children}
+      </Animated.View>
+    );
   }
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
-        <ActivityIndicator color="#FF6B00" style={{ marginTop: 60 }} />
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#f0f0f5" />
+          </TouchableOpacity>
+        </View>
+        <ActivityIndicator size="large" color="#F97316" style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
 
   if (notFound || !profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#F0F0FA" />
-        </TouchableOpacity>
-        <View style={styles.centered}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#f0f0f5" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.errorState}>
+          <Ionicons name="person-outline" size={48} color="#3a3a50" />
           <Text style={styles.errorText}>User not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const earnedKeys = new Set(badges.map((b) => b.badge_key));
+  const initials = profile.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) ?? 'U';
+  const earnedKeys    = new Set(badges.map(b => b.badge_key));
+  const hasReputation = Object.keys(reputationTags).length > 0;
+  const hasSkills     = Object.keys(skillLevels).length > 0;
+  const hasHistory    = eventHistory.length > 0;
+  const isOwnProfile  = me?.id === userId;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#F0F0FA" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color="#f0f0f5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Avatar + name */}
-        <View style={styles.avatarSection}>
-          {profile.profile_image_url ? (
-            <Image source={{ uri: profile.profile_image_url }} style={styles.avatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Ionicons name="person" size={40} color="#4A4A6A" />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* SECTION 0: Hero */}
+        {fadeSection(0, (
+          <View style={styles.hero}>
+            <View style={styles.avatarRow}>
+              <View style={styles.avatarWrapper}>
+                {profile.profile_image_url ? (
+                  <Image source={{ uri: profile.profile_image_url }} style={styles.avatarImage} contentFit="cover" />
+                ) : (
+                  <View style={styles.avatarFallback}>
+                    <Text style={styles.avatarInitials}>{initials}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.displayName}>{profile.name}</Text>
+                <Text style={styles.handle}>
+                  @{profile.username}{profile.location ? ` · ${profile.location}` : ''}
+                </Text>
+                <View style={styles.pillsRow}>
+                  {repScore !== null && repScore !== 'New'
+                    ? (
+                      <View style={[tpStyles.pill, { borderColor: '#FBBF2440', backgroundColor: '#FBBF2418' }]}>
+                        <Text style={[tpStyles.text, { color: '#FBBF24' }]}>★ {Number(repScore).toFixed(1)} rep</Text>
+                      </View>
+                    ) : (
+                      <TrustScorePill score={profile.trust_score ?? 0} />
+                    )
+                  }
+                  {profile.is_verified && (
+                    <View style={styles.verifiedPill}>
+                      <Ionicons name="checkmark-circle" size={13} color="#34d399" />
+                      <Text style={styles.verifiedText}>Verified</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
-          )}
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.username}>@{profile.username}</Text>
-          {profile.is_verified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
-          )}
-        </View>
 
-        {/* Trust score pill */}
-        {profile.trust_score != null && profile.trust_score > 0 && (
-          <View style={styles.tierRow}>
-            <View style={styles.scorePill}>
-              <Ionicons name="star" size={12} color="#FF6B00" />
-              <Text style={styles.scoreText}>★ {Number(profile.trust_score).toFixed(1)}</Text>
-            </View>
-          </View>
-        )}
+            {profile.bio
+              ? <Text style={styles.bio}>{profile.bio}</Text>
+              : <Text style={styles.bioHint}>No bio yet</Text>
+            }
 
-        {/* Bio */}
-        {profile.bio ? (
-          <View style={styles.bioBox}>
-            <Text style={styles.bioText}>{profile.bio}</Text>
+            {/* Action buttons — only for other users */}
+            {!isOwnProfile && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.dmButton}
+                  onPress={() => router.push(`/(tabs)/messages/dm/${userId}` as any)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="chatbubble-outline" size={16} color="#f0f0f5" />
+                  <Text style={styles.dmButtonText}>Message</Text>
+                </TouchableOpacity>
+                {rateableEvent && (
+                  <TouchableOpacity style={styles.rateButton} onPress={() => setShowModal(true)} activeOpacity={0.85}>
+                    <Ionicons name="star-outline" size={16} color="#F97316" />
+                    <Text style={styles.rateButtonText}>Rate</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
-        ) : null}
+        ))}
 
-        {/* Location */}
-        {profile.location ? (
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={14} color="#7878A0" />
-            <Text style={styles.locationText}>{profile.location}</Text>
+        {/* SECTION 1: Stats */}
+        {fadeSection(1, (
+          <View style={styles.statsRow}>
+            {[
+              { value: stats.attended, label: 'Attended' },
+              { value: stats.hosted,   label: 'Hosted'   },
+              { value: stats.vouches,  label: 'Vouches'  },
+            ].map(({ value, label }) => (
+              <View key={label} style={styles.statCard}>
+                <Text style={styles.statValue}>{value}</Text>
+                <Text style={styles.statLabel}>{label}</Text>
+              </View>
+            ))}
           </View>
-        ) : null}
+        ))}
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{attended}</Text>
-            <Text style={styles.statLabel}>Attended</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{hosted}</Text>
-            <Text style={styles.statLabel}>Hosted</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{badges.length}</Text>
-            <Text style={styles.statLabel}>Badges</Text>
-          </View>
-        </View>
-
-        {/* Badges */}
-        <Text style={styles.sectionTitle}>Badges</Text>
-        <View style={styles.badgesGrid}>
-          {BADGE_DEFINITIONS.map((def) => (
-            <BadgeItem
-              key={def.key}
-              emoji={def.emoji}
-              name={def.name}
-              earned={earnedKeys.has(def.key)}
+        {/* SECTION 2: Streak */}
+        {fadeSection(2, (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>🔥 Current Streak</Text>
+            <StreakCard
+              currentStreak={streak?.current_streak ?? 0}
+              longestStreak={streak?.longest_streak ?? 0}
             />
-          ))}
-        </View>
+          </View>
+        ))}
+
+        {/* SECTION 3: Badges */}
+        {fadeSection(3, (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>🏅 Badges</Text>
+            <View style={styles.badgeGrid}>
+              {BADGE_DEFINITIONS.map(badge => (
+                <View key={badge.key} style={styles.badgeCell}>
+                  <BadgeItem
+                    emoji={badge.emoji}
+                    name={badge.name}
+                    earned={earnedKeys.has(badge.key)}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {/* SECTION 4: Reputation */}
+        {fadeSection(4, (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>👍 Reputation</Text>
+            {hasReputation ? (
+              <View style={styles.tagsWrap}>
+                {Object.entries(reputationTags).map(([tag, count]) => (
+                  <ReputationTag key={tag} tag={tag} count={count} />
+                ))}
+              </View>
+            ) : (
+              <EmptyHint icon="thumbs-up-outline" text="No reputation tags yet" />
+            )}
+          </View>
+        ))}
+
+        {/* SECTION 5: Skill Levels */}
+        {fadeSection(5, (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>📊 Skill Levels</Text>
+            {hasSkills ? (
+              Object.entries(skillLevels).map(([cat, level]) => {
+                if (!barAnims.current[cat]) {
+                  barAnims.current[cat] = new Animated.Value((LEVEL_TO_PERCENT[level] ?? 10) / 100);
+                }
+                const barWidth = barAnims.current[cat].interpolate({
+                  inputRange: [0, 1], outputRange: ['0%', '100%'],
+                });
+                return (
+                  <View key={cat} style={styles.skillRow}>
+                    <Text style={styles.skillCat}>{cat}</Text>
+                    <View style={styles.barTrack}>
+                      <Animated.View style={[styles.barFill, { width: barWidth }]} />
+                    </View>
+                    <Text style={styles.skillLevel}>{level}</Text>
+                  </View>
+                );
+              })
+            ) : (
+              <EmptyHint icon="bar-chart-outline" text="No skill levels yet" />
+            )}
+          </View>
+        ))}
+
+        {/* SECTION 6: Event History */}
+        {fadeSection(6, (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>📅 Event History</Text>
+            {hasHistory ? (
+              eventHistory.map(ev => <EventHistoryCard key={ev.id} event={ev} />)
+            ) : (
+              <EmptyHint icon="calendar-outline" text="No event history yet" />
+            )}
+          </View>
+        ))}
+
       </ScrollView>
+
+      {/* Rating Modal */}
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Rate {profile.name}</Text>
+            {rateableEvent && (
+              <Text style={styles.modalSub} numberOfLines={1}>From: {rateableEvent.name}</Text>
+            )}
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map(n => (
+                <TouchableOpacity key={n} onPress={() => setSelectedStars(n)} activeOpacity={0.7} style={styles.starBtn}>
+                  <Ionicons
+                    name={n <= selectedStars ? 'star' : 'star-outline'}
+                    size={36}
+                    color={n <= selectedStars ? '#FBBF24' : '#3D3D5C'}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedStars > 0 && (
+              <Text style={styles.starLabel}>
+                {['Poor', 'Fair', 'Good', 'Great', 'Excellent'][selectedStars - 1]}
+              </Text>
+            )}
+            <Text style={styles.tagsHeading}>Add tags (optional)</Text>
+            <View style={styles.tagsWrapModal}>
+              {REPUTATION_TAGS.map(tag => {
+                const active = selectedTags.has(tag);
+                return (
+                  <TouchableOpacity
+                    key={tag}
+                    style={[styles.tagChip, active && styles.tagChipActive]}
+                    onPress={() => toggleTag(tag)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)} disabled={submitting}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitBtn, (selectedStars === 0 || submitting) && styles.submitBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={selectedStars === 0 || submitting}
+                activeOpacity={0.85}
+              >
+                {submitting
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={styles.submitBtnText}>Submit Rating</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0F0F13',
-  },
+  container: { flex: 1, backgroundColor: '#0a0a0f' },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,178 +540,109 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1E1E28',
-    alignItems: 'center',
-    justifyContent: 'center',
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#13131c',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#F0F0FA',
-  },
-  scroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    marginBottom: 12,
-  },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#f0f0f5' },
+
+  scroll: { paddingHorizontal: 16, paddingBottom: 40 },
+
+  // Hero
+  hero: { marginBottom: 20 },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 12 },
+  avatarWrapper: { position: 'relative' },
+  avatarImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: '#F97316' },
   avatarFallback: {
-    backgroundColor: '#1E1E28',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#F97316', borderWidth: 3, borderColor: '#F97316',
+    justifyContent: 'center', alignItems: 'center',
   },
-  name: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#F0F0FA',
-    marginBottom: 2,
+  avatarInitials: { fontSize: 28, fontWeight: '800', color: '#fff' },
+  profileInfo: { flex: 1, gap: 4 },
+  displayName: { fontSize: 22, fontWeight: '800', color: '#f0f0f5' },
+  handle: { fontSize: 13, color: '#7a7a9a' },
+  pillsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 },
+  verifiedPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: 'rgba(52,211,153,0.12)', borderWidth: 1, borderColor: 'rgba(52,211,153,0.3)',
   },
-  username: {
-    fontSize: 14,
-    color: '#7878A0',
-    fontWeight: '600',
-    marginBottom: 6,
+  verifiedText: { fontSize: 12, fontWeight: '700', color: '#34d399' },
+  bio: { fontSize: 14, color: '#7a7a9a', lineHeight: 20, marginBottom: 12 },
+  bioHint: { fontSize: 13, color: '#3a3a50', fontStyle: 'italic', marginBottom: 12 },
+
+  // Action buttons
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  dmButton: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#13131c', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14, paddingVertical: 13,
   },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#0f2e1a',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+  dmButtonText: { fontSize: 15, fontWeight: '700', color: '#f0f0f5' },
+  rateButton: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#13131c', borderWidth: 1.5, borderColor: '#F97316',
+    borderRadius: 14, paddingVertical: 13,
   },
-  verifiedText: {
-    fontSize: 12,
-    color: '#22c55e',
-    fontWeight: '700',
+  rateButtonText: { fontSize: 15, fontWeight: '700', color: '#F97316' },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  statCard: {
+    flex: 1, backgroundColor: '#13131c', borderRadius: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    paddingVertical: 16, alignItems: 'center',
   },
-  tierRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 16,
+  statValue: { fontSize: 26, fontWeight: '800', color: '#F97316' },
+  statLabel: { fontSize: 12, color: '#7a7a9a', fontWeight: '600', marginTop: 2 },
+
+  // Section
+  section: { marginBottom: 28 },
+  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#f0f0f5', marginBottom: 12 },
+
+  // Badges
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  badgeCell: { width: '25%' },
+
+  // Reputation
+  tagsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+
+  // Skills
+  skillRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  skillCat: { width: 100, fontSize: 13, fontWeight: '600', color: '#f0f0f5' },
+  barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 4, backgroundColor: '#F97316' },
+  skillLevel: { width: 90, fontSize: 11, fontWeight: '600', color: '#7a7a9a', textAlign: 'right' },
+
+  // Error
+  errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorText: { fontSize: 15, color: '#7a7a9a', fontWeight: '600' },
+
+  // Rating modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: '#16161E', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 24, paddingBottom: 36, paddingTop: 12,
   },
-  tierPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#1E1E28',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  tierEmoji: {
-    fontSize: 14,
-  },
-  tierLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#C0C0D8',
-  },
-  scorePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#1E1E28',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  scoreText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FF6B00',
-  },
-  bioBox: {
-    backgroundColor: '#1A1030',
-    borderWidth: 1,
-    borderColor: '#3D2A6E',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-  },
-  bioText: {
-    fontSize: 14,
-    color: '#C0C0D8',
-    lineHeight: 20,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 16,
-    justifyContent: 'center',
-  },
-  locationText: {
-    fontSize: 13,
-    color: '#7878A0',
-    fontWeight: '500',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: '#1E1E28',
-    borderRadius: 16,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#2E2E40',
-    marginVertical: 12,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#F0F0FA',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#7878A0',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#F0F0FA',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  badgesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    color: '#7878A0',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  modalHandle: { width: 40, height: 4, backgroundColor: '#3D3D5C', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#f0f0f5', textAlign: 'center', marginBottom: 4 },
+  modalSub: { fontSize: 13, color: '#7a7a9a', textAlign: 'center', marginBottom: 20 },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 6 },
+  starBtn: { padding: 4 },
+  starLabel: { fontSize: 14, fontWeight: '600', color: '#FBBF24', textAlign: 'center', marginBottom: 20 },
+  tagsHeading: { fontSize: 13, fontWeight: '700', color: '#7a7a9a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  tagsWrapModal: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  tagChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#3D3D5C', backgroundColor: '#1E1E28' },
+  tagChipActive: { borderColor: '#F97316', backgroundColor: '#2A1A0A' },
+  tagChipText: { fontSize: 13, fontWeight: '600', color: '#7a7a9a' },
+  tagChipTextActive: { color: '#F97316' },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#1E1E28', alignItems: 'center' },
+  cancelBtnText: { fontSize: 15, fontWeight: '700', color: '#7a7a9a' },
+  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#F97316', alignItems: 'center' },
+  submitBtnDisabled: { opacity: 0.45 },
+  submitBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

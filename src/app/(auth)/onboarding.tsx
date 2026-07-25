@@ -77,10 +77,12 @@ export default function OnboardingScreen() {
   const handleComplete = async () => {
     if (!name || !username) {
       Alert.alert("Error", "Please fill in all fields");
+      return;
     }
 
     if (username.length < 3) {
       Alert.alert("Error", "Username must be at least 3 characters");
+      return;
     }
 
     setIsLoading(true);
@@ -137,6 +139,17 @@ export default function OnboardingScreen() {
       setIsLoading(false);
     }
   };
+
+  // Guard: user hasn't settled in context yet (race between signUp + navigation)
+  if (!user) {
+    return (
+      <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#FF6B00" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.container}>

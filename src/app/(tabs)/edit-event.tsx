@@ -74,7 +74,7 @@ export default function EditEventScreen(): React.JSX.Element {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const PLACES_KEY = 'AIzaSyBthTvUzhvd_c7XYtF5mxgRMdIr5kLg8rA';
+  const PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
 
   useEffect(() => {
     Location.requestForegroundPermissionsAsync().then(({ status }) => {

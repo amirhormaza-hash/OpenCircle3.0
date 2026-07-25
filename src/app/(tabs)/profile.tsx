@@ -25,6 +25,7 @@ import {
   fetchStreak,
   fetchEventHistory,
   fetchSkillLevels,
+  fetchUserReputationScore,
 } from '../../lib/profileQueries';
 // 4-column badge cards: earned = orange tint, locked = greyed out
 import BadgeItem from '../../components/BadgeItem';
@@ -118,6 +119,7 @@ export default function ProfileScreen() {
   const [reputationTags, setReputationTags] = useState<Record<string, number>>({});
   const [skillLevels, setSkillLevels]       = useState<Record<string, string>>({});
   const [eventHistory, setEventHistory]     = useState<HistoryEvent[]>([]);
+  const [repScore, setRepScore]             = useState<number | 'New' | null>(null);
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState(false);
 
@@ -170,6 +172,7 @@ export default function ProfileScreen() {
         repTags,
         skills,
         history,
+        repResult,
       ] = await Promise.all([
         fetchProfile(userId),
         fetchEventStats(userId),
@@ -178,6 +181,7 @@ export default function ProfileScreen() {
         fetchReputationTags(userId),
         fetchSkillLevels(userId),
         fetchEventHistory(userId),
+        fetchUserReputationScore(userId),
       ]);
 
       // Vouch count = sum of all tag counts — no extra query needed
@@ -190,13 +194,14 @@ export default function ProfileScreen() {
       setReputationTags(repTags);
       setSkillLevels(skills);
       setEventHistory(history as HistoryEvent[]);
+      setRepScore(repResult);
 
       // Mark any unseen badges as seen now that the user is viewing them
       const unseenKeys = (badgeData as BadgeRow[])
         .filter(b => !b.seen)
         .map(b => b.badge_key);
       if (unseenKeys.length > 0) {
-        supabase
+        await supabase
           .from('user_badges')
           .update({ seen: true })
           .eq('user_id', userId)
@@ -324,7 +329,15 @@ export default function ProfileScreen() {
                   {profile?.location ? ` · ${profile.location}` : ''}
                 </Text>
                 <View style={styles.pillsRow}>
-                  <TrustScorePill score={profile?.trust_score ?? 0} />
+                  {repScore !== null && repScore !== 'New'
+                    ? (
+                      <View style={[tpStyles.pill, { borderColor: '#FBBF2440', backgroundColor: '#FBBF2418' }]}>
+                        <Text style={[tpStyles.text, { color: '#FBBF24' }]}>★ {Number(repScore).toFixed(1)} rep</Text>
+                      </View>
+                    ) : (
+                      <TrustScorePill score={profile?.trust_score ?? 0} />
+                    )
+                  }
                   {profile?.is_verified && (
                     <View style={styles.verifiedPill}>
                       <Ionicons name="checkmark-circle" size={13} color="#34d399" />

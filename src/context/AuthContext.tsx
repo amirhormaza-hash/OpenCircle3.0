@@ -1,11 +1,11 @@
-import { supabase } from "@/lib/supabase/client";
-import {
+import React, {
   createContext,
   ReactNode,
   useContext,
   useEffect,
   useState,
 } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 export interface User {
   id: string;
@@ -19,10 +19,14 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  needsPasswordReset: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  clearPasswordReset: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,9 +34,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsPasswordReset, setNeedsPasswordReset] = useState(false);
 
   useEffect(() => {
     checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setNeedsPasswordReset(true);
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+        setNeedsPasswordReset(false);
+      }
+      // SIGNED_IN is handled by signIn/signUp explicitly to avoid double-fetching
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
@@ -70,19 +89,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        console.error("Error fetching profile:", error);
+        // PGRST116 = no rows found; expected before onboarding creates the profile row
+        if (error.code !== "PGRST116") {
+          console.error("Error fetching profile:", error);
+        }
         return null;
       }
-      if (!data) {
-        console.error("No profile data returned");
-        return null;
-      }
+      if (!data) return null;
 
       const authUser = await supabase.auth.getUser();
-      if (!authUser.data.user) {
-        console.error("No auth user found");
-        return null;
-      }
+      if (!authUser.data.user) return null;
 
       return {
         id: data.id,
@@ -103,9 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       password,
     });
-
     if (error) throw error;
-
     if (data.user) {
       const profile = await fetchUserProfile(data.user.id);
       setUser(profile);
@@ -113,31 +127,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
-
     if (data.user) {
-      const profile = await fetchUserProfile(data.user.id);
-      setUser(profile);
+      setUser({
+        id: data.user.id,
+        email: data.user.email ?? "",
+        name: "",
+        username: "",
+        onboardingCompleted: false,
+      });
     }
   };
 
   const updateUser = async (userData: Partial<User>) => {
     if (!user) return;
-
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (userData.name !== undefined) updateData.name = userData.name;
-      if (userData.username !== undefined)
-        updateData.username = userData.username;
-      if (userData.profileImage !== undefined)
-        updateData.profile_image_url = userData.profileImage;
-      if (userData.onboardingCompleted !== undefined)
-        updateData.onboarding_completed = userData.onboardingCompleted;
+      if (userData.username !== undefined) updateData.username = userData.username;
+      if (userData.profileImage !== undefined) updateData.profile_image_url = userData.profileImage;
+      if (userData.onboardingCompleted !== undefined) updateData.onboarding_completed = userData.onboardingCompleted;
 
       const { error, data } = await supabase
         .from("profiles")
@@ -146,9 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .select()
         .single();
       if (error) throw error;
-
       if (data) {
-        console.log(data);
         const profile = await fetchUserProfile(data.id);
         setUser(profile);
       }
@@ -157,9 +165,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
+
+  // Sends a password-reset email. Add `opencircle://` to your Supabase
+  // dashboard → Authentication → URL Configuration → Redirect URLs.
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "opencircle://reset-password",
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    setNeedsPasswordReset(false);
+  };
+
+  const clearPasswordReset = () => setNeedsPasswordReset(false);
+
   return (
     <AuthContext.Provider
-      value={{ user, signUp, updateUser, signIn, signOut, isLoading }}
+      value={{
+        user,
+        isLoading,
+        needsPasswordReset,
+        signUp,
+        signIn,
+        updateUser,
+        signOut,
+        resetPassword,
+        updatePassword,
+        clearPasswordReset,
+      }}
     >
       {children}
     </AuthContext.Provider>

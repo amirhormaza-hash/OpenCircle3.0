@@ -204,9 +204,9 @@ describe('calculateUserRating', () => {
     });
 
     it('n=11 uses weighted blend', () => {
-      const eleven = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 5]; // old=[1] avg=1, recent sum=40 avg=4
-      // R = 0.4×1 + 0.6×4 = 0.4 + 2.4 = 2.8
-      expect(calculateUserRating(eleven)).toBe(2.8);
+      const eleven = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 5]; // old=[1] avg=1, recent sum=34 avg=3.4
+      // R = 0.4×1 + 0.6×3.4 = 0.4 + 2.04 = 2.44
+      expect(calculateUserRating(eleven)).toBe(2.44);
     });
   });
 });

@@ -185,7 +185,7 @@ export async function fetchUserRatingsReceived(userId: string): Promise<number[]
     .not('score', 'is', null)
     .order('created_at', { ascending: true });
 
-  return (data ?? []).map((r: { score: number }) => r.score);
+  return (data ?? []).map((r: { score: number }) => Number(r.score));
 }
 
 /**
@@ -220,7 +220,7 @@ export async function fetchBehaviorProfile(userId: string): Promise<BehaviorProf
     )
     .eq('id', userId)
     .single();
-  return data ?? null;
+  return (data as BehaviorProfile | null) ?? null;
 }
 
 /**
@@ -262,4 +262,77 @@ export const deductPoints = (userId: string, action: string, context?: Record<st
   callScoreFunction('deduct-points', userId, action, context);
 
 export const checkAchievements = (userId: string) =>
-  supabaseClient.functions.invoke('check-achievements', { body: { user_id: userId } });
+  supabaseClient.functions.invoke('quick-service', { body: { user_id: userId } });
+
+// ── User-to-User Rating ───────────────────────────────────────────────────────
+
+/**
+ * Finds the most recent event both users attended where the rater hasn't
+ * already submitted a rating for the rated user.  Returns null if none exists.
+ */
+export async function fetchRateableEvent(
+  myId: string,
+  theirId: string,
+): Promise<{ id: string; name: string } | null> {
+  const [{ data: mine }, { data: theirs }] = await Promise.all([
+    supabase.from('event_attendees').select('event_id').eq('user_id', myId),
+    supabase.from('event_attendees').select('event_id').eq('user_id', theirId),
+  ]);
+
+  const theirSet = new Set((theirs ?? []).map((r: { event_id: string }) => r.event_id));
+  const sharedIds = (mine ?? [])
+    .map((r: { event_id: string }) => r.event_id)
+    .filter((id: string) => theirSet.has(id));
+
+  if (sharedIds.length === 0) return null;
+
+  const { data: existing } = await supabase
+    .from('user_ratings')
+    .select('event_id')
+    .eq('rater_id', myId)
+    .eq('rated_id', theirId)
+    .in('event_id', sharedIds);
+
+  const ratedIds = new Set((existing ?? []).map((r: { event_id: string }) => r.event_id));
+  const unratedIds = sharedIds.filter((id: string) => !ratedIds.has(id));
+  if (unratedIds.length === 0) return null;
+
+  const { data: events } = await supabase
+    .from('event')
+    .select('id, name')
+    .in('id', unratedIds)
+    .order('date_time', { ascending: false })
+    .limit(1);
+
+  return (events?.[0] as { id: string; name: string }) ?? null;
+}
+
+/**
+ * Insert a user-to-user rating row and award behavior score points to both
+ * the rater (leave_review) and the rated user (receive_4star / receive_5star).
+ */
+export async function submitUserRating(
+  raterId: string,
+  ratedId: string,
+  eventId: string,
+  score:   1 | 2 | 3 | 4 | 5,
+  tags:    string[],
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('user_ratings')
+    .insert({ rater_id: raterId, rated_id: ratedId, event_id: eventId, score, tags });
+
+  if (error) return { error: error.message };
+
+  await addPoints(raterId, 'leave_review', { rated_user_id: ratedId, event_id: eventId });
+
+  if (score === 5) {
+    await addPoints(ratedId, 'receive_5star', { rater_id: raterId, event_id: eventId });
+  } else if (score === 4) {
+    await addPoints(ratedId, 'receive_4star', { rater_id: raterId, event_id: eventId });
+  }
+
+  await Promise.all([checkAchievements(raterId), checkAchievements(ratedId)]);
+
+  return { error: null };
+}

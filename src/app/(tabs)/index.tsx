@@ -23,6 +23,8 @@ import FullScreenImageViewer from '../../components/FullScreenImageViewer';
 import AnimatedEmptyState from '../../components/AnimatedEmptyState';
 // Bottom-sheet modal with event image gallery, info boxes, and action buttons
 import EventDetailsModal, { actionButtonStyles } from '../../components/EventDetailsModal';
+import OpenRing from '../../components/OpenRing';
+import { colors, fonts } from '../../constants/colors';
 import { supabase } from '../../lib/supabase/client';
 import { calculateEventRating } from '../../lib/ratingSystem';
 import { useBadge } from '../../context/BadgeContext';
@@ -294,8 +296,8 @@ export default function Index() {
       setMyListBadge(true);
       closeModal();
       // Update streak and check badge unlocks in the background
-      supabase.functions.invoke('update-streak', { body: { user_id: user.id, event_date: selectedEvent.date_time } });
-      supabase.functions.invoke('check-badges',  { body: { user_id: user.id } });
+      supabase.functions.invoke('bright-handler', { body: { user_id: user.id, event_date: selectedEvent.date_time } });
+      supabase.functions.invoke('quick-service',  { body: { user_id: user.id } });
     }
     setModalJoining(false);
   }
@@ -303,7 +305,7 @@ export default function Index() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#0F0F13" />
+        <StatusBar barStyle="light-content" backgroundColor="#0F0F13" />
         <SkeletonCard />
         <SkeletonCard />
         <SkeletonCard />
@@ -313,7 +315,7 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F0F13" />
 
       <FlatList
         data={sortedEvents}
@@ -347,6 +349,11 @@ export default function Index() {
           />
         }
         ListHeaderComponent={
+          <>
+          <View style={styles.brandRow}>
+            <OpenRing size={20} bg={colors.bg} />
+            <Text style={styles.brandWordmark}>OpenCircle</Text>
+          </View>
           <View style={styles.filterRowHeader}>
             <View style={styles.filterLeft}>
               <TouchableOpacity
@@ -398,6 +405,7 @@ export default function Index() {
               </Text>
             </TouchableOpacity>
           </View>
+          </>
         }
         ListEmptyComponent={
           // Shown when no events match the current filters
@@ -519,12 +527,27 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
 
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+  },
+
+  brandWordmark: {
+    fontSize: 22,
+    fontFamily: fonts.display,
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
+
   filterRowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 10,
-    paddingTop: 28,
+    paddingTop: 16,
     paddingBottom: 4,
   },
 
@@ -547,7 +570,7 @@ const styles = StyleSheet.create({
 
   sortMenu: {
     position: 'absolute',
-    top: 80,
+    top: 106,
     right: 10,
     backgroundColor: '#1A1A24',
     borderRadius: 14,
@@ -573,7 +596,7 @@ const styles = StyleSheet.create({
 
   sortMenuItemText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#C0C0D8',
   },
 
@@ -600,7 +623,7 @@ const styles = StyleSheet.create({
 
   filterButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#C0C0D8',
   },
 
@@ -618,7 +641,7 @@ const styles = StyleSheet.create({
 
   clearButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#7878A0',
   },
 
@@ -631,7 +654,7 @@ const styles = StyleSheet.create({
 
   activeChipText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#FFFFFF',
   },
 
@@ -660,17 +683,17 @@ const styles = StyleSheet.create({
 
   filterSheetTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: fonts.heading,
     color: '#F0F0FA',
     marginBottom: 20,
   },
 
   filterSectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontFamily: fonts.bold,
     color: '#FF6B00',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
     marginBottom: 10,
   },
 
@@ -697,7 +720,7 @@ const styles = StyleSheet.create({
 
   filterChipText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#7878A0',
   },
 
@@ -721,7 +744,7 @@ const styles = StyleSheet.create({
   filterDoneButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.heading,
   },
 
 });

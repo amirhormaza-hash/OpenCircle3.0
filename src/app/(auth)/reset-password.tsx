@@ -1,23 +1,20 @@
-import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import AuthBrandHeader from "@/components/AuthBrandHeader";
 import AuthInputField from "@/components/AuthInputField";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 function passwordStrength(pw: string): { label: string; color: string; width: `${number}%` } {
@@ -33,97 +30,90 @@ function passwordStrength(pw: string): { label: string; color: string; width: `$
   return { label: "Strong", color: "#16A34A", width: "100%" };
 }
 
-function friendlySignUpError(message: string): string {
-  if (message.includes("User already registered") || message.includes("already been registered"))
-    return "An account with this email already exists. Try signing in instead.";
-  if (message.includes("invalid") && message.includes("email"))
-    return "Please enter a valid email address.";
-  if (message.includes("Password"))
-    return "Password doesn't meet the requirements.";
+function friendlyResetError(message: string): string {
+  if (message.includes("different from the old password"))
+    return "Your new password must be different from your current one.";
+  if (message.includes("weak"))
+    return "Password is too weak. Please choose a stronger one.";
   return "Something went wrong. Please try again.";
 }
 
-export default function SignUpScreen() {
-  const [email, setEmail] = useState("");
+export default function ResetPasswordScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const { updatePassword, clearPasswordReset } = useAuth();
   const router = useRouter();
-  const { signUp } = useAuth();
 
   const strength = passwordStrength(password);
 
-  const handleSignUp = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
-
-    if (!trimmedEmail || !password || !confirmPassword) {
-      Alert.alert("Missing fields", "Please fill in all fields.");
-      return;
-    }
-    if (!EMAIL_RE.test(trimmedEmail)) {
-      Alert.alert("Invalid email", "Please enter a valid email address.");
+  const handleReset = async () => {
+    if (!password) {
+      Alert.alert("Required", "Please enter a new password.");
       return;
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      Alert.alert("Password too short", `Your password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      Alert.alert("Too short", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
     if (password !== confirmPassword) {
       Alert.alert("Passwords don't match", "Please make sure both passwords are the same.");
       return;
     }
-
     setIsLoading(true);
     try {
-      await signUp(trimmedEmail, password);
-      router.replace("/(auth)/onboarding");
+      await updatePassword(password);
+      setDone(true);
     } catch (error: any) {
-      Alert.alert("Sign Up Failed", friendlySignUpError(error?.message ?? ""));
+      Alert.alert("Reset Failed", friendlyResetError(error?.message ?? ""));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGoToApp = () => {
+    clearPasswordReset();
+    router.replace("/(tabs)");
+  };
+
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="chevron-back" size={24} color="#F0F0FA" />
-      </TouchableOpacity>
-
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <AuthBrandHeader accentColor="#7C3AED" tagline="Join the community" />
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Sign up to get started</Text>
-
-            <View style={styles.form}>
-              <AuthInputField
-                icon="mail-outline"
-                placeholder="Email"
-                keyboardType="email-address"
-                autoComplete="email"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
-              />
+        <View style={styles.content}>
+          {done ? (
+            /* ── Success state ── */
+            <View style={styles.card}>
+              <View style={styles.iconWrapper}>
+                <Ionicons name="checkmark-circle-outline" size={40} color="#22C55E" />
+              </View>
+              <Text style={styles.title}>Password Updated</Text>
+              <Text style={styles.body}>
+                Your password has been changed successfully. You're all set.
+              </Text>
+              <TouchableOpacity style={[styles.button, styles.buttonGreen]} onPress={handleGoToApp}>
+                <Text style={styles.buttonText}>Continue to App</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* ── Reset form ── */
+            <View style={styles.card}>
+              <View style={styles.iconWrapper}>
+                <Ionicons name="key-outline" size={40} color="#FF6B00" />
+              </View>
+              <Text style={styles.title}>Create new password</Text>
+              <Text style={styles.body}>
+                Your new password must be at least {MIN_PASSWORD_LENGTH} characters.
+              </Text>
 
               <AuthInputField
                 icon="lock-closed-outline"
-                placeholder="Password"
+                placeholder="New password"
                 autoComplete="new-password"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -132,7 +122,7 @@ export default function SignUpScreen() {
                 rightElement={
                   <TouchableOpacity
                     onPress={() => setShowPassword((v) => !v)}
-                    style={styles.eyeIcon}
+                    style={styles.eye}
                   >
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}
@@ -162,7 +152,7 @@ export default function SignUpScreen() {
 
               <AuthInputField
                 icon="lock-closed-outline"
-                placeholder="Confirm password"
+                placeholder="Confirm new password"
                 autoComplete="new-password"
                 secureTextEntry={!showConfirm}
                 autoCapitalize="none"
@@ -171,7 +161,7 @@ export default function SignUpScreen() {
                 rightElement={
                   <TouchableOpacity
                     onPress={() => setShowConfirm((v) => !v)}
-                    style={styles.eyeIcon}
+                    style={styles.eye}
                   >
                     <Ionicons
                       name={showConfirm ? "eye-off-outline" : "eye-outline"}
@@ -188,28 +178,18 @@ export default function SignUpScreen() {
 
               <TouchableOpacity
                 style={[styles.button, isLoading && styles.buttonDisabled]}
-                onPress={handleSignUp}
+                onPress={handleReset}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator size={24} color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Create Account</Text>
+                  <Text style={styles.buttonText}>Set New Password</Text>
                 )}
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => router.push("/(auth)/login")}
-              >
-                <Text style={styles.linkButtonText}>
-                  Already have an account?{" "}
-                  <Text style={styles.linkButtonTextBold}>Sign In</Text>
-                </Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
+          )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -221,48 +201,45 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0F0F13",
   },
-  backButton: {
-    position: "absolute",
-    top: 56,
-    left: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#1A1A24",
-    borderWidth: 1,
-    borderColor: "#2E2E40",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
     justifyContent: "center",
     padding: 24,
-    paddingTop: 80,
   },
   card: {
     backgroundColor: "#1A1A24",
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     borderWidth: 1,
     borderColor: "#2E2E40",
+  },
+  iconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#0F0F13",
+    borderWidth: 1,
+    borderColor: "#2E2E40",
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginBottom: 20,
   },
   title: {
     fontSize: 22,
     fontWeight: "700",
-    marginBottom: 4,
     color: "#F0F0FA",
+    textAlign: "center",
+    marginBottom: 10,
   },
-  subtitle: {
+  body: {
     fontSize: 14,
-    marginBottom: 24,
     color: "#7878A0",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
   },
-  form: {
-    width: "100%",
-  },
-  eyeIcon: { padding: 4 },
+  eye: { padding: 4 },
   strengthRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -296,33 +273,25 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   button: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#FF6B00",
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
     marginTop: 4,
-    shadowColor: "#7C3AED",
+    shadowColor: "#FF6B00",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  buttonGreen: {
+    backgroundColor: "#16A34A",
+    shadowColor: "#16A34A",
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
-  },
-  linkButton: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  linkButtonText: {
-    color: "#7878A0",
-    fontSize: 14,
-  },
-  linkButtonTextBold: {
-    fontWeight: "700",
-    color: "#7C3AED",
   },
 });

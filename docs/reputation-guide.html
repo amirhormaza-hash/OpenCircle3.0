@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OpenCircle — Your Reputation Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --orange: #FF6B00;
+    --orange-light: #FFF3E8;
+    --green:  #16A34A;
+    --green-light: #F0FDF4;
+    --blue:   #2563EB;
+    --blue-light: #EFF6FF;
+    --amber: #D97706;
+    --amber-light: #FFFBEB;
+    --red:    #DC2626;
+    --red-light: #FEF2F2;
+    --gray:   #6B7280;
+    --gray-light: #F9FAFB;
+    --border: #E5E7EB;
+    --text:   #111827;
+    --bg:     #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 52px 60px;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    text-align: center;
+    padding: 48px 0 52px;
+    border-bottom: 4px solid var(--orange);
+    margin-bottom: 60px;
+  }
+  .cover-logo {
+    font-size: 56px;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .cover h1 {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--orange);
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+  }
+  .cover .tagline {
+    font-size: 16px;
+    color: var(--gray);
+    margin-top: 10px;
+    font-weight: 400;
+  }
+  .cover .intro-box {
+    margin-top: 32px;
+    background: var(--orange-light);
+    border-radius: 14px;
+    padding: 22px 28px;
+    font-size: 14.5px;
+    line-height: 1.75;
+    color: var(--text);
+    text-align: left;
+  }
+  .cover .intro-box strong {
+    color: var(--orange);
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2.5px solid var(--orange);
+  }
+  .section-icon {
+    font-size: 26px;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 28px 0 10px;
+  }
+
+  p {
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+
+  ul, ol {
+    padding-left: 22px;
+    margin-bottom: 14px;
+  }
+  li {
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+
+  /* ── TRUST TIER CARDS ── */
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin: 20px 0 28px;
+  }
+  .tier-card {
+    border-radius: 12px;
+    padding: 16px 10px;
+    text-align: center;
+    border: 2px solid var(--border);
+  }
+  .tier-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+  .tier-name { font-size: 11.5px; font-weight: 800; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .tier-range { font-size: 10.5px; color: var(--gray); display: block; margin-bottom: 8px; }
+  .tier-perk { font-size: 10.5px; line-height: 1.55; }
+  .t-trusted    { border-color: #F59E0B; background: #FFFBEB; }
+  .t-reliable   { border-color: #9CA3AF; background: #F9FAFB; }
+  .t-casual     { border-color: #D97706; background: #FFFBEB; }
+  .t-flagged    { border-color: #F97316; background: #FFF7ED; }
+  .t-restricted { border-color: #DC2626; background: #FEF2F2; }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 18px 0;
+    display: flex;
+    gap: 12px;
+    font-size: 13.5px;
+    line-height: 1.65;
+  }
+  .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .callout.tip     { background: var(--blue-light);  border-left: 4px solid var(--blue);  }
+  .callout.good    { background: var(--green-light); border-left: 4px solid var(--green); }
+  .callout.warn    { background: var(--amber-light); border-left: 4px solid var(--amber); }
+  .callout.danger  { background: var(--red-light);   border-left: 4px solid var(--red);   }
+
+  /* ── POINTS TABLE ── */
+  .points-group {
+    margin-bottom: 24px;
+  }
+  .points-group h3 {
+    margin-bottom: 10px;
+  }
+  .points-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 9px 14px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 13.5px;
+  }
+  .points-row:nth-child(even) { background: var(--gray-light); }
+  .points-action { flex: 1; }
+  .points-action .note { font-size: 12px; color: var(--gray); }
+  .points-val {
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 48px;
+    text-align: right;
+  }
+  .points-val.pos { color: var(--green); }
+  .points-val.neg { color: var(--red); }
+
+  /* ── BADGE CARDS ── */
+  .badges-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .badge-card {
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .badge-emoji { font-size: 38px; flex-shrink: 0; line-height: 1; }
+  .badge-body .badge-name {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 2px;
+  }
+  .badge-body .badge-pts {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--orange);
+    margin-bottom: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-body .badge-desc {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.55;
+    margin-bottom: 5px;
+  }
+  .badge-body .badge-how {
+    font-size: 12px;
+    color: var(--blue);
+    font-weight: 600;
+  }
+
+  /* ── STAR RATING DISPLAY ── */
+  .rep-levels {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 16px 0 24px;
+  }
+  .rep-level {
+    border-radius: 10px;
+    padding: 14px 12px;
+    text-align: center;
+    border: 1.5px solid var(--border);
+  }
+  .rep-level .rep-stars { font-size: 18px; display: block; margin-bottom: 4px; }
+  .rep-level .rep-range { font-size: 11px; color: var(--gray); display: block; margin-bottom: 5px; }
+  .rep-level .rep-label { font-size: 13px; font-weight: 700; }
+  .rep-new      { border-color: #9CA3AF; background: #F9FAFB; }
+  .rep-good     { border-color: #D97706; background: #FFFBEB; }
+  .rep-great    { border-color: var(--orange); background: #FFF3E8; }
+  .rep-excellent{ border-color: var(--green); background: var(--green-light); }
+
+  /* ── REPUTATION TAGS ── */
+  .tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0 24px;
+  }
+  .tag-chip {
+    background: var(--blue-light);
+    border: 2px solid #BFDBFE;
+    border-radius: 24px;
+    padding: 7px 18px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--blue);
+    white-space: nowrap;
+  }
+
+  /* ── QUICK TIPS ── */
+  .tips-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .tip-card {
+    background: var(--gray-light);
+    border-radius: 12px;
+    padding: 16px 18px;
+    border: 1.5px solid var(--border);
+  }
+  .tip-card .tip-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--orange);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .tip-card .tip-text {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  /* ── DEDUCTION TABLE ── */
+  .deduct-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    font-size: 13.5px;
+    border: 1.5px solid var(--border);
+  }
+  .deduct-row.serious { background: #FEF2F2; border-color: #FCA5A5; }
+  .deduct-icon { font-size: 18px; flex-shrink: 0; }
+  .deduct-text { flex: 1; }
+  .deduct-text strong { display: block; font-weight: 700; margin-bottom: 2px; }
+  .deduct-text span { font-size: 12px; color: var(--gray); }
+  .deduct-pts { font-weight: 800; color: var(--red); flex-shrink: 0; font-size: 14px; }
+
+  /* ── FOOTER ── */
+  .doc-footer {
+    margin-top: 64px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--gray);
+  }
+
+  /* ── PRINT / PDF ── */
+  @media print {
+    body { padding: 36px 48px; font-size: 13px; }
+    .cover { padding: 36px 0 44px; margin-bottom: 48px; }
+    .cover h1 { font-size: 30px; }
+    .section { margin-bottom: 44px; }
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+    .tiers { gap: 8px; }
+    .badges-grid { gap: 10px; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <span class="cover-logo">⭕</span>
+  <h1>Your Reputation on OpenCircle</h1>
+  <div class="tagline">How ratings, badges, and trust levels work — for everyone</div>
+  <div class="intro-box">
+    <strong>Three simple things shape your reputation:</strong><br/>
+    Your <strong>Trust Level</strong> shows how reliable you are as a member. Your <strong>Star Rating</strong> shows what other people think of you after sharing an event. Your <strong>Badges</strong> celebrate the milestones you hit along the way. The better you show up, the more all three grow.
+  </div>
+</div>
+
+
+<!-- SECTION 1: TRUST LEVEL -->
+<div class="section no-break">
+  <div class="section-header">
+    <span class="section-icon">🏅</span>
+    <h2>Your Trust Level</h2>
+  </div>
+
+  <p>Every member has a <strong>Trust Level</strong> — it's a running score that goes up when you do good things and down when you don't show up or break the rules. You start at <strong>1,000 points</strong> as a brand-new member, which puts you in the <em>Reliable</em> tier right away.</p>
+
+  <div class="tiers">
+    <div class="tier-card t-trusted">
+      <span class="tier-icon">🥇</span>
+      <span class="tier-name">Trusted</span>
+      <span class="tier-range">1,200 +</span>
+      <span class="tier-perk">✅ Join events<br/>✅ Host events<br/>✅ Diamond badge eligible</span>
+    </div>
+    <div class="tier-card t-reliable">
+      <span class="tier-icon">🥈</span>
+      <span class="tier-name">Reliable</span>
+      <span class="tier-range">1,000 – 1,199</span>
+      <span class="tier-perk">✅ Join events<br/>✅ Host events</span>
+    </div>
+    <div class="tier-card t-casual">
+      <span class="tier-icon">🥉</span>
+      <span class="tier-name">Casual</span>
+      <span class="tier-range">900 – 999</span>
+      <span class="tier-perk">✅ Join events<br/>✅ Host events</span>
+    </div>
+    <div class="tier-card t-flagged">
+      <span class="tier-icon">⚠️</span>
+      <span class="tier-name">Flagged</span>
+      <span class="tier-range">800 – 899</span>
+      <span class="tier-perk">✅ Join events<br/>❌ Can't host</span>
+    </div>
+    <div class="tier-card t-restricted">
+      <span class="tier-icon">🚫</span>
+      <span class="tier-name">Restricted</span>
+      <span class="tier-range">0 – 799</span>
+      <span class="tier-perk">❌ Can't join<br/>❌ Can't host</span>
+    </div>
+  </div>
+
+  <div class="callout good">
+    <span class="callout-icon">💡</span>
+    <div><strong>New member tip:</strong> You get a 30-day grace period when you first join. If you miss an event or cancel late for the first time, you'll just get a friendly warning instead of losing points — so don't be afraid to dive in.</div>
+  </div>
+</div>
+
+
+<!-- SECTION 2: EARNING POINTS -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">⭐</span>
+    <h2>How You Earn Points</h2>
+  </div>
+
+  <p>Points add up fast when you're an active, reliable member. Here's everything that boosts your score:</p>
+
+  <div class="points-group">
+    <h3>Everyday Actions</h3>
+    <div class="points-row">
+      <div class="points-action">Open the app daily <span class="note">— once per day</span></div>
+      <div class="points-val pos">+2</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Complete your profile (photo, bio, info)</div>
+      <div class="points-val pos">+20</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Join your very first event <span class="note">— one-time bonus</span></div>
+      <div class="points-val pos">+20</div>
+    </div>
+  </div>
+
+  <div class="points-group">
+    <h3>Attending Events</h3>
+    <div class="points-row">
+      <div class="points-action">Join an event</div>
+      <div class="points-val pos">+5</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Sign up at least 24 hours early <span class="note">— bonus on top of the join points</span></div>
+      <div class="points-val pos">+3</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Show up (confirmed by location) <span class="note">— for events with check-in</span></div>
+      <div class="points-val pos">+10</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Chat in the event group <span class="note">— up to 5 messages rewarded per event</span></div>
+      <div class="points-val pos">+2 each</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Leave a star rating after the event</div>
+      <div class="points-val pos">+5</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Someone gives you a 5★ rating</div>
+      <div class="points-val pos">+10</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Someone gives you a 4★ rating</div>
+      <div class="points-val pos">+5</div>
+    </div>
+  </div>
+
+  <div class="points-group">
+    <h3>Hosting Events</h3>
+    <div class="points-row">
+      <div class="points-action">Host your first event ever <span class="note">— one-time bonus</span></div>
+      <div class="points-val pos">+25</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Your event gets rated above 4.0 stars</div>
+      <div class="points-val pos">+20</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Your event gets rated above 4.5 stars</div>
+      <div class="points-val pos">+35</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Every spot in your event fills up</div>
+      <div class="points-val pos">+25</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">Reply to an attendee within 1 hour</div>
+      <div class="points-val pos">+5</div>
+    </div>
+  </div>
+
+  <div class="points-group">
+    <h3>Growing the Community</h3>
+    <div class="points-row">
+      <div class="points-action">Share an event (someone clicks your link)</div>
+      <div class="points-val pos">+10</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">A friend joins through your shared link</div>
+      <div class="points-val pos">+20</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">You refer a friend and they attend an event</div>
+      <div class="points-val pos">+30</div>
+    </div>
+    <div class="points-row">
+      <div class="points-action">You receive a vouch from another member</div>
+      <div class="points-val pos">+15</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- SECTION 3: WHAT LOWERS YOUR SCORE -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-icon">⚠️</span>
+    <h2>What Lowers Your Score</h2>
+  </div>
+
+  <p>Most deductions are for things like not showing up or cancelling too late. These are recoverable — you can earn the points back. A few serious violations, however, can result in a permanent ban.</p>
+
+  <h3>Things You Can Recover From</h3>
+
+  <div class="deduct-row">
+    <span class="deduct-icon">🚶</span>
+    <div class="deduct-text">
+      <strong>No-Show</strong>
+      <span>You signed up for an event but didn't come and didn't cancel.</span>
+    </div>
+    <div class="deduct-pts">−30</div>
+  </div>
+  <div class="deduct-row">
+    <span class="deduct-icon">🕐</span>
+    <div class="deduct-text">
+      <strong>Late Cancellation</strong>
+      <span>You cancelled too close to the event start time.</span>
+    </div>
+    <div class="deduct-pts">−20</div>
+  </div>
+  <div class="deduct-row">
+    <span class="deduct-icon">📉</span>
+    <div class="deduct-text">
+      <strong>Your Hosted Event Received a Very Low Rating</strong>
+      <span>Your event averaged below 2 stars from attendees.</span>
+    </div>
+    <div class="deduct-pts">−20</div>
+  </div>
+
+  <h3>Serious Violations — No Second Chance</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🚫</span>
+    <div>These are not recoverable and your grace period does not protect you from them. They go into effect immediately once confirmed by our team.</div>
+  </div>
+
+  <div class="deduct-row serious">
+    <span class="deduct-icon">😡</span>
+    <div class="deduct-text">
+      <strong>Harassment</strong>
+      <span>Confirmed intimidation or bullying of another member.</span>
+    </div>
+    <div class="deduct-pts">−200</div>
+  </div>
+  <div class="deduct-row serious">
+    <span class="deduct-icon">🤬</span>
+    <div class="deduct-text">
+      <strong>Hate Speech</strong>
+      <span>Offensive language targeting someone's identity.</span>
+    </div>
+    <div class="deduct-pts">−300</div>
+  </div>
+  <div class="deduct-row serious">
+    <span class="deduct-icon">🎭</span>
+    <div class="deduct-text">
+      <strong>Fake Reviews</strong>
+      <span>Submitting dishonest ratings to boost or harm someone.</span>
+    </div>
+    <div class="deduct-pts">−200</div>
+  </div>
+  <div class="deduct-row serious">
+    <span class="deduct-icon">⛔</span>
+    <div class="deduct-text">
+      <strong>Predatory Behavior</strong>
+      <span>Exploiting or targeting other members. Results in a permanent ban.</span>
+    </div>
+    <div class="deduct-pts">−1,000</div>
+  </div>
+</div>
+
+
+<!-- SECTION 4: YOUR STAR RATING -->
+<div class="section no-break">
+  <div class="section-header">
+    <span class="section-icon">🌟</span>
+    <h2>Your Personal Star Rating</h2>
+  </div>
+
+  <p>After you attend an event together, other members can give you a <strong>1–5 star rating</strong>. This builds your personal reputation score — completely separate from your trust level points. Here's how the labels work once you've collected enough ratings:</p>
+
+  <div class="rep-levels">
+    <div class="rep-level rep-new">
+      <span class="rep-stars">🆕</span>
+      <span class="rep-range">Fewer than 3 ratings</span>
+      <span class="rep-label" style="color:var(--gray);">New</span>
+    </div>
+    <div class="rep-level rep-good">
+      <span class="rep-stars">⭐⭐⭐</span>
+      <span class="rep-range">3.0 – 3.9 stars</span>
+      <span class="rep-label" style="color:var(--amber);">Good</span>
+    </div>
+    <div class="rep-level rep-great">
+      <span class="rep-stars">⭐⭐⭐⭐</span>
+      <span class="rep-range">4.0 – 4.4 stars</span>
+      <span class="rep-label" style="color:var(--orange);">Great</span>
+    </div>
+    <div class="rep-level rep-excellent">
+      <span class="rep-stars">⭐⭐⭐⭐⭐</span>
+      <span class="rep-range">4.5 – 5.0 stars</span>
+      <span class="rep-label" style="color:var(--green);">Excellent</span>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">💡</span>
+    <div><strong>How can you rate someone?</strong> Visit their profile after you've both attended the same event. You'll see a rating option — just pick 1 to 5 stars and add some tags. You can rate the same person again if you attend another event together later.</div>
+  </div>
+
+  <div class="callout good">
+    <span class="callout-icon">📈</span>
+    <div><strong>Your recent ratings matter most.</strong> The app gives more weight to your most recent 10 ratings. So even if you had a rough start, a run of great events can bring your score back up.</div>
+  </div>
+</div>
+
+
+<!-- SECTION 5: REPUTATION TAGS -->
+<div class="section no-break">
+  <div class="section-header">
+    <span class="section-icon">🏷️</span>
+    <h2>Reputation Tags</h2>
+  </div>
+
+  <p>When someone rates you, they can also choose <strong>descriptive tags</strong> that describe what it was like spending time with you. These appear as little counters on your profile — a quick snapshot of the kind of person you are at events.</p>
+
+  <div class="tag-grid">
+    <span class="tag-chip">😊 Friendly</span>
+    <span class="tag-chip">✅ Reliable</span>
+    <span class="tag-chip">🎉 Fun</span>
+    <span class="tag-chip">👑 Great Host</span>
+    <span class="tag-chip">📋 Organized</span>
+    <span class="tag-chip">🤝 Welcoming</span>
+    <span class="tag-chip">⚡ Active</span>
+    <span class="tag-chip">✨ Good Vibes</span>
+    <span class="tag-chip">🙏 Respectful</span>
+    <span class="tag-chip">⏰ Punctual</span>
+  </div>
+
+  <p>Tags don't change your point score — they're purely a way for the community to vouch for you in their own words. The more events you attend, the more tags you collect.</p>
+</div>
+
+
+<!-- SECTION 6: BADGES -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-icon">🏆</span>
+    <h2>Badges</h2>
+  </div>
+
+  <p>Badges are <strong>permanent achievements</strong> that celebrate your milestones on OpenCircle. You earn each badge exactly once — they stay on your profile forever. Every badge also adds a one-time bonus to your trust level score.</p>
+
+  <div class="badges-grid">
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">🥇</span>
+      <div class="badge-body">
+        <div class="badge-name">First Timer</div>
+        <div class="badge-pts">+25 bonus points</div>
+        <div class="badge-desc">You attended your very first event on OpenCircle.</div>
+        <div class="badge-how">How: just show up to one event!</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">🔥</span>
+      <div class="badge-body">
+        <div class="badge-name">On Fire</div>
+        <div class="badge-pts">+50 bonus points</div>
+        <div class="badge-desc">You went to at least one event every week for 3 weeks in a row.</div>
+        <div class="badge-how">How: keep your weekly streak going for 3 weeks.</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">👑</span>
+      <div class="badge-body">
+        <div class="badge-name">Host</div>
+        <div class="badge-pts">+50 bonus points</div>
+        <div class="badge-desc">You hosted an event and the attendees loved it — over 3 stars on average.</div>
+        <div class="badge-how">How: create and host your own event.</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">🦋</span>
+      <div class="badge-body">
+        <div class="badge-name">Social Butterfly</div>
+        <div class="badge-pts">+40 bonus points</div>
+        <div class="badge-desc">You sent a message in the group chat for 10 different events.</div>
+        <div class="badge-how">How: say hello in the chat whenever you join an event.</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">🏹</span>
+      <div class="badge-body">
+        <div class="badge-name">Specialist</div>
+        <div class="badge-pts">+45 bonus points</div>
+        <div class="badge-desc">You attended 5 or more events that are all in the same category — like Sports, Food, or Study.</div>
+        <div class="badge-how">How: find what you love and stick with it.</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">⚡</span>
+      <div class="badge-body">
+        <div class="badge-name">Early Bird</div>
+        <div class="badge-pts">+30 bonus points</div>
+        <div class="badge-desc">You signed up for an event more than 24 hours in advance — 5 times.</div>
+        <div class="badge-how">How: browse upcoming events and join early.</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">🚀</span>
+      <div class="badge-body">
+        <div class="badge-name">Explorer</div>
+        <div class="badge-pts">+60 bonus points</div>
+        <div class="badge-desc">You've experienced events from 5 completely different categories.</div>
+        <div class="badge-how">How: try something new — sports, art, food, study, outdoors…</div>
+      </div>
+    </div>
+
+    <div class="badge-card no-break">
+      <span class="badge-emoji">💎</span>
+      <div class="badge-body">
+        <div class="badge-name">Diamond</div>
+        <div class="badge-pts">+100 bonus points</div>
+        <div class="badge-desc">You stayed in the Trusted tier (1,200+ points) for 30 days straight without dropping below.</div>
+        <div class="badge-how">How: be consistently great — show up, be kind, host well.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- SECTION 7: QUICK TIPS -->
+<div class="section no-break">
+  <div class="section-header">
+    <span class="section-icon">🚀</span>
+    <h2>How to Build a Great Reputation — Fast</h2>
+  </div>
+
+  <p>Starting from your first day, here's the simplest path to becoming a Trusted member:</p>
+
+  <div class="tips-grid">
+    <div class="tip-card">
+      <div class="tip-num">Tip 1</div>
+      <div class="tip-text"><strong>Finish your profile.</strong> Add a photo and write a short bio. That's +20 points in 2 minutes.</div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-num">Tip 2</div>
+      <div class="tip-text"><strong>Join events early.</strong> Sign up the day before — you get a bonus just for planning ahead.</div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-num">Tip 3</div>
+      <div class="tip-text"><strong>Always show up.</strong> A no-show hits your score hard. If you can't make it, cancel early.</div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-num">Tip 4</div>
+      <div class="tip-text"><strong>Say hi in the group chat.</strong> A quick message earns points and makes you more welcoming.</div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-num">Tip 5</div>
+      <div class="tip-text"><strong>Rate people after events.</strong> You get +5 just for leaving an honest review. Do it every time.</div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-num">Tip 6</div>
+      <div class="tip-text"><strong>Try hosting once.</strong> A well-run event earns you big points and the Host badge.</div>
+    </div>
+  </div>
+
+  <div class="callout good" style="margin-top:24px;">
+    <span class="callout-icon">✅</span>
+    <div>An active, friendly member can realistically reach <strong>Trusted status within 2 to 4 weeks</strong> of regular use. You don't need to do anything special — just show up and be a good person.</div>
+  </div>
+</div>
+
+
+<div class="doc-footer">
+  OpenCircle &nbsp;·&nbsp; Member Reputation Guide &nbsp;·&nbsp; June 2026
+</div>
+
+</body>
+</html>

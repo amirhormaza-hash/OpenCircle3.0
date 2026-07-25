@@ -20,10 +20,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase/client';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
+import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { File } from 'expo-file-system';
 
 const CATEGORY_OPTIONS = [
   'Sports', 'Party', 'Food', 'Study', 'Networking', 'Ride', 'Outdoors', 'Zen', 'Other',
@@ -80,7 +80,7 @@ export default function CreateEventScreen(): React.JSX.Element {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const PLACES_KEY = 'AIzaSyBthTvUzhvd_c7XYtF5mxgRMdIr5kLg8rA';
+  const PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
 
   useEffect(() => {
     Location.requestForegroundPermissionsAsync().then(({ status }) => {
@@ -191,11 +191,12 @@ export default function CreateEventScreen(): React.JSX.Element {
   async function uploadSingleEventImage(userId: string, uri: string, index: number): Promise<UploadedImage> {
     const extension = getExtensionFromUri(uri);
     const filePath = generateUniqueFilename(userId, index, extension);
-    const file = new File(uri);
-    const arrayBuffer = await file.arrayBuffer();
+
+    const bytes = await new File(uri).bytes();
+
     const { error: uploadError } = await supabase.storage
       .from('event-images')
-      .upload(filePath, arrayBuffer, { contentType: getContentType(extension), cacheControl: '3600', upsert: false });
+      .upload(filePath, bytes.buffer, { contentType: getContentType(extension), cacheControl: '3600', upsert: false });
     if (uploadError) throw uploadError;
     const { data: { publicUrl } } = supabase.storage.from('event-images').getPublicUrl(filePath);
     if (!publicUrl) throw new Error('Failed to generate public URL for uploaded image.');
@@ -274,6 +275,11 @@ export default function CreateEventScreen(): React.JSX.Element {
     setSaving(true);
     setUploadProgress(null);
 
+    // Tracks the inserted event row so a failure in any later step
+    // (attendee insert, image upload, image rows insert) rolls it back —
+    // an event must never survive a creation error.
+    let createdEventId: string | null = null;
+
     try {
       let latitude: number | null = pickedLatLon?.lat ?? null;
       let longitude: number | null = pickedLatLon?.lon ?? null;
@@ -298,6 +304,7 @@ export default function CreateEventScreen(): React.JSX.Element {
         .single();
 
       if (eventError) throw eventError;
+      createdEventId = createdEvent.id;
 
       const { error: attendeeError } = await supabase
         .from('event_attendees')
@@ -321,6 +328,15 @@ export default function CreateEventScreen(): React.JSX.Element {
       Toast.show({ type: 'success', text1: 'Event created!', text2: 'Your event is now live.', position: 'bottom' });
       router.back();
     } catch (error: unknown) {
+      if (createdEventId) {
+        try {
+          await supabase.from('event_attendees').delete().eq('event_id', createdEventId);
+          await supabase.from('event_images').delete().eq('event_id', createdEventId);
+          await supabase.from('event').delete().eq('id', createdEventId);
+        } catch (_) {
+          // Best-effort rollback; the error below is what the user needs to see.
+        }
+      }
       const msg = error instanceof Error ? error.message : 'Could not create event.';
       Alert.alert('Error', msg);
     } finally {

@@ -39,7 +39,12 @@ export default function SkeletonCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 24 },
+  card: {
+    marginHorizontal: 12,
+    marginBottom: 20,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
   image: {
     width: '100%',
     aspectRatio: 4 / 5,

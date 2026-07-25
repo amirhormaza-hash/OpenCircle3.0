@@ -3,8 +3,9 @@
 // Handles join / leave / edit / delete actions with animated feedback.
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, ImageSourcePropType } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, ImageSourcePropType } from 'react-native';
 import { supabase } from '../lib/supabase/client';
+import { categoryColor, fonts } from '../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -48,7 +49,7 @@ const BURST_SPARKLE_OFFSETS = [
   { tx: -28, ty: 24 },
   { tx: -28, ty: -24 },
 ];
-const SPARKLE_COLORS = ['#FFD700', '#FF8C00', '#FF3366', '#FFA500'];
+const SPARKLE_COLORS = ['#FFD76A', '#FF9440', '#FFE9B8', '#FF7A1A'];
 
 function BalloonJoinButton({
   isJoined,
@@ -62,6 +63,8 @@ function BalloonJoinButton({
   const btnScale = useSharedValue(1);
   const ringScale = useSharedValue(0.9);
   const ringOpacity = useSharedValue(0);
+  const spin = useSharedValue(0);
+  const dotPop = useSharedValue(1);
   const p0 = useSharedValue(0);
   const p1 = useSharedValue(0);
   const p2 = useSharedValue(0);
@@ -69,6 +72,16 @@ function BalloonJoinButton({
 
   const btnAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
+  }));
+
+  // Open-ring icon: the gap sits top-right (45°); joining spins the ring
+  // once and pops the dot — taking the open spot in the circle.
+  const iconRingStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${45 - spin.value * 360}deg` }],
+  }));
+
+  const iconDotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: dotPop.value }],
   }));
 
   const ringStyle = useAnimatedStyle(() => ({
@@ -113,6 +126,13 @@ function BalloonJoinButton({
     ringScale.value = withTiming(2.6, { duration: 450, easing: Easing.out(Easing.quad) });
     ringOpacity.value = withTiming(0, { duration: 420 });
 
+    spin.value = 0;
+    spin.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
+    dotPop.value = withSequence(
+      withTiming(1.7, { duration: 140, easing: Easing.out(Easing.ease) }),
+      withSpring(1, { damping: 6, stiffness: 180 })
+    );
+
     const dur = 460;
     const ease = Easing.out(Easing.quad);
     p0.value = 0; p0.value = withDelay(30, withTiming(1, { duration: dur, easing: ease }));
@@ -128,9 +148,12 @@ function BalloonJoinButton({
 
   if (isJoined) {
     return (
-      <TouchableOpacity onPress={handlePress} style={[balloonStyles.btn, balloonStyles.leaveBtn]}>
-        <Text style={balloonStyles.btnText}>Leave</Text>
-      </TouchableOpacity>
+      <View style={[balloonStyles.wrapper, balloonStyles.leaveBtnWrapper]}>
+        <TouchableOpacity onPress={handlePress} activeOpacity={0.78} style={balloonStyles.leaveBtn}>
+          <Ionicons name="exit-outline" size={18} color="#FF8080" />
+          <Text style={[balloonStyles.btnText, balloonStyles.leaveBtnText]}>Leave</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -162,22 +185,34 @@ function BalloonJoinButton({
           pointerEvents="none"
         />
       ))}
-      {/* Balloon button */}
+      {/* Join button */}
       <Animated.View style={btnAnimStyle}>
         <TouchableOpacity
           onPress={handlePress}
+          onPressIn={() => { btnScale.value = withTiming(0.96, { duration: 90 }); }}
+          onPressOut={() => { btnScale.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
           disabled={loading}
-          activeOpacity={0.88}
+          activeOpacity={0.92}
           style={balloonStyles.btn}
         >
           <LinearGradient
-            colors={['#FF9000', '#FF4E00']}
-            start={{ x: 0.15, y: 0 }}
-            end={{ x: 0.85, y: 1 }}
+            colors={['#FF8A3D', '#FF6B00', '#F04F00']}
+            locations={[0, 0.55, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
             style={balloonStyles.gradient}
           >
-            <View style={balloonStyles.gloss} pointerEvents="none" />
-            <Text style={balloonStyles.btnText}>{loading ? '…' : 'Join'}</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <View style={balloonStyles.btnRow}>
+                <View style={balloonStyles.ringIcon}>
+                  <Animated.View style={[balloonStyles.ringArc, iconRingStyle]} />
+                  <Animated.View style={[balloonStyles.ringDot, iconDotStyle]} />
+                </View>
+                <Text style={balloonStyles.btnText}>Join</Text>
+              </View>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
@@ -195,36 +230,75 @@ const balloonStyles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#FF6B00',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.38,
+    shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 6,
   },
-  leaveBtn: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 14,
-    alignItems: 'center',
+  leaveBtnWrapper: {
+    shadowColor: '#FF4444',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  gradient: {
+  leaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 68, 68, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 100, 100, 0.4)',
     paddingVertical: 14,
     paddingHorizontal: 20,
+  },
+  leaveBtnText: {
+    color: '#FF8080',
+  },
+  gradient: {
+    paddingVertical: 15,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
-  gloss: {
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  ringIcon: {
+    width: 20,
+    height: 20,
+  },
+  ringArc: {
     position: 'absolute',
-    top: 5,
-    left: 24,
-    right: 24,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.32)',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+    borderWidth: 2.4,
+    borderColor: '#FFFFFF',
+    borderTopColor: 'transparent',
+  },
+  ringDot: {
+    position: 'absolute',
+    top: 1,
+    right: 1,
+    width: 5.5,
+    height: 5.5,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
   },
   btnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 18,
+    fontFamily: fonts.display,
+    letterSpacing: 0.6,
   },
   burstRing: {
     borderRadius: 999,
@@ -337,7 +411,7 @@ export default function EventCard({
 
   useEffect(() => {
     checkUserStatus();
-  }, [event.id]);
+  }, [event.id, event.profile_id]);
 
   async function checkUserStatus() {
     const user = (await supabase.auth.getUser()).data.user;
@@ -376,8 +450,8 @@ export default function EventCard({
       setIsJoined(true);
       onJoin?.();
       // Update streak and check badge unlocks in the background
-      supabase.functions.invoke('update-streak', { body: { user_id: user.id, event_date: event.date_time } });
-      supabase.functions.invoke('check-badges',  { body: { user_id: user.id } });
+      supabase.functions.invoke('bright-handler', { body: { user_id: user.id, event_date: event.date_time } });
+      supabase.functions.invoke('quick-service',  { body: { user_id: user.id } });
     }
   }
 
@@ -441,6 +515,7 @@ export default function EventCard({
       ]);
       return;
     } else {
+      try {
       const { error } = await supabase.from('event_attendees').insert({
         event_id: event.id,
         user_id: user.id,
@@ -451,8 +526,11 @@ export default function EventCard({
         setIsJoined(true);
         if (onJoin) animateSendToList(onJoin);
         // Update streak and check badge unlocks in the background
-        supabase.functions.invoke('update-streak', { body: { user_id: user.id, event_date: event.date_time } });
-        supabase.functions.invoke('check-badges',  { body: { user_id: user.id } });
+        supabase.functions.invoke('bright-handler', { body: { user_id: user.id, event_date: event.date_time } });
+        supabase.functions.invoke('quick-service',  { body: { user_id: user.id } });
+      }
+      } catch {
+        Alert.alert('Error', 'Could not join event. Please try again.');
       }
     }
     setLoading(false);
@@ -480,6 +558,17 @@ export default function EventCard({
   const [userImageFailed, setUserImageFailed] = useState(false);
   const userImage = event.first_image_url && !userImageFailed ? { uri: event.first_image_url } : null;
   const categoryImage = getCategoryImage(event.category);
+
+  function renderCategoryChip(absolute: boolean) {
+    if (!event.category) return null;
+    const c = categoryColor(event.category);
+    return (
+      <View style={[styles.categoryChip, absolute ? styles.categoryChipFloating : styles.categoryChipInline]}>
+        <View style={[styles.categoryDot, { backgroundColor: c }]} />
+        <Text style={[styles.categoryChipText, { color: c }]}>{event.category}</Text>
+      </View>
+    );
+  }
 
   function renderRatingRow(light: boolean) {
     if (event.rating == null) return null;
@@ -563,6 +652,7 @@ export default function EventCard({
               locations={[0.3, 0.65, 1]}
               style={styles.overlay}
             />
+            {renderCategoryChip(true)}
             <View style={styles.textContent}>
               <Text style={styles.title}>{event.name}</Text>
               {renderOwnerRow(true)}
@@ -592,6 +682,7 @@ export default function EventCard({
               locations={[0, 0.5, 1]}
               style={styles.overlay}
             />
+            {renderCategoryChip(true)}
             <View style={styles.textContent}>
               <Text style={styles.title}>{event.name}</Text>
               {renderOwnerRow(true)}
@@ -615,6 +706,7 @@ export default function EventCard({
           </View>
         ) : (
           <View style={styles.placeholderCard}>
+            {renderCategoryChip(false)}
             <Text style={styles.title}>{event.name}</Text>
             {renderOwnerRow(false)}
             <View style={styles.infoContainer}>
@@ -650,12 +742,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 0,
     paddingVertical: 0,
-    borderRadius: 0,
-    marginBottom: 24,
+    marginHorizontal: 12,
+    marginBottom: 20,
   },
   imageCard: {
     width: '100%',
     aspectRatio: 4 / 5,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
     overflow: 'hidden',
     justifyContent: 'flex-end',
   },
@@ -672,9 +767,44 @@ const styles = StyleSheet.create({
   placeholderCard: {
     width: '100%',
     backgroundColor: '#1E1E28',
-    paddingHorizontal: 14,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#2E2E40',
+    paddingHorizontal: 16,
     paddingVertical: 18,
     marginBottom: 0,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(10,10,16,0.72)',
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  categoryChipFloating: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    zIndex: 5,
+  },
+  categoryChipInline: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#2E2E40',
+  },
+  categoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  categoryChipText: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    letterSpacing: 0.3,
+    textTransform: 'capitalize',
   },
   actionButton: {
     marginTop: 14,
@@ -691,7 +821,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   textContent: {
     paddingHorizontal: 16,
@@ -700,9 +830,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '900',
+    fontFamily: fonts.display,
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: -0.3,
     textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
@@ -720,7 +851,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     flexShrink: 1,
-    fontWeight: '600',
+    fontFamily: fonts.body,
     textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -742,7 +873,7 @@ const styles = StyleSheet.create({
   },
   swipeLabel: {
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: fonts.display,
     letterSpacing: 1,
   },
   ownerRow: {
@@ -752,7 +883,7 @@ const styles = StyleSheet.create({
   },
   ownerText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.body,
   },
   ownerLink: {
     textDecorationLine: 'underline',

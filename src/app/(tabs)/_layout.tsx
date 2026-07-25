@@ -3,29 +3,32 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBadge } from "../../context/BadgeContext";
+import { colors, fonts } from "../../constants/colors";
 
 export default function Layout() {
     const { myListBadge } = useBadge();
+    const insets = useSafeAreaInsets();
 
     return (
         <Tabs screenOptions={{
             headerShown: false,
-            tabBarActiveTintColor: "#FF6B00",
-            tabBarInactiveTintColor: "#4A4A6A",
+            tabBarActiveTintColor: colors.ember,
+            tabBarInactiveTintColor: colors.mutedDeep,
             tabBarLabelStyle: {
                 fontSize: 11,
-                fontWeight: "600",
-                marginBottom: 4,
+                fontFamily: fonts.bold,
+                marginBottom: 2,
             },
             tabBarStyle: {
-                backgroundColor: Platform.OS === 'ios' ? 'rgba(15,15,19,0.88)' : '#0F0F13',
+                backgroundColor: Platform.OS === 'ios' ? 'rgba(15,15,19,0.88)' : colors.bg,
                 borderTopWidth: 1,
-                borderTopColor: "#1E1E2A",
+                borderTopColor: '#1E1E2A',
                 elevation: 0,
-                height: Platform.OS === 'ios' ? 165 : 125,
-                paddingTop: 8,
-                paddingBottom: Platform.OS === 'ios' ? 90 : 62,
+                height: 56 + insets.bottom,
+                paddingTop: 6,
+                paddingBottom: Math.max(insets.bottom, 8),
             },
             tabBarBackground: Platform.OS === 'ios' ? () => (
                 <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
@@ -65,6 +68,7 @@ export default function Layout() {
                 ),
             }} />
             <Tabs.Screen name="messages/[eventId]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+            <Tabs.Screen name="messages/dm/[userId]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="edit-event" options={{ href: null }} />
             <Tabs.Screen name="profile-settings" options={{ href: null }} />
             <Tabs.Screen name="user-profile" options={{ href: null }} />
@@ -80,6 +84,6 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#FF6B00',
+        backgroundColor: colors.ember,
     },
 });

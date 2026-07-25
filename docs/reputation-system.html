@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OpenCircle — Reputation, Badges &amp; Awards System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --orange: #FF6B00;
+    --purple: #7C3AED;
+    --green:  #22C55E;
+    --blue:   #3B82F6;
+    --red:    #EF4444;
+    --bg:     #ffffff;
+    --surface:#F8F9FB;
+    --border: #E5E7EB;
+    --text:   #111827;
+    --muted:  #6B7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 56px;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    margin-bottom: 56px;
+    border-bottom: 3px solid var(--orange);
+    padding-bottom: 40px;
+  }
+  .cover-logo { font-size: 48px; margin-bottom: 12px; }
+  .cover h1 {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--orange);
+    letter-spacing: -0.5px;
+    text-align: center;
+  }
+  .cover .sub {
+    font-size: 15px;
+    color: var(--muted);
+    margin-top: 6px;
+    text-align: center;
+  }
+  .cover .meta {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+  .toc ol { padding-left: 18px; }
+  .toc li { margin-bottom: 5px; font-size: 13.5px; }
+  .toc a { color: var(--orange); text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Sections ── */
+  section { margin-bottom: 52px; }
+  h2.section-title {
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2.section-title .num {
+    background: var(--orange);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 24px 0 10px;
+  }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  strong { font-weight: 700; }
+  em { color: var(--muted); }
+
+  /* ── Info / callout boxes ── */
+  .callout {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout.info    { background: #EFF6FF; border-left: 4px solid var(--blue);   }
+  .callout.warning { background: #FFF7ED; border-left: 4px solid var(--orange); }
+  .callout.danger  { background: #FEF2F2; border-left: 4px solid var(--red);    }
+  .callout.success { background: #F0FDF4; border-left: 4px solid var(--green);  }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--surface);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border-bottom: 2px solid var(--border);
+  }
+  tbody td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+
+  /* ── Tier cards ── */
+  .tiers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 16px 0 24px; }
+  .tier-card {
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    border: 1.5px solid var(--border);
+  }
+  .tier-card .emoji { font-size: 24px; display: block; margin-bottom: 6px; }
+  .tier-card .name  { font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px; }
+  .tier-card .range { font-size: 11px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .tier-card .perms { font-size: 10.5px; line-height: 1.5; color: var(--text); }
+  .tier-trusted    { border-color: #F59E0B; background: #FFFBEB; }
+  .tier-reliable   { border-color: #9CA3AF; background: #F9FAFB; }
+  .tier-casual     { border-color: #D97706; background: #FFFBEB; }
+  .tier-flagged    { border-color: #F97316; background: #FFF7ED; }
+  .tier-restricted { border-color: var(--red); background: #FEF2F2; }
+
+  /* ── Badge cards ── */
+  .badges { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 16px 0; }
+  .badge-card {
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .badge-emoji { font-size: 32px; flex-shrink: 0; }
+  .badge-info .badge-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .badge-info .badge-pts  { font-size: 11px; font-weight: 700; color: var(--orange); margin-bottom: 5px; }
+  .badge-info .badge-desc { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .badge-info .badge-cond { font-size: 12px; color: var(--blue); font-weight: 500; }
+
+  /* ── Code / formula blocks ── */
+  .formula {
+    background: #F3F4F6;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+
+  /* ── Score bar visual ── */
+  .score-bar { display: flex; height: 20px; border-radius: 6px; overflow: hidden; margin: 14px 0; }
+  .score-segment { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+
+  /* ── Page break ── */
+  @media print {
+    .page-break { page-break-before: always; }
+    body { padding: 32px 40px; }
+    .cover { min-height: 160px; }
+  }
+
+  /* ── Footer line ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-logo">⭕</div>
+  <h1>Reputation, Badges &amp; Awards</h1>
+  <div class="sub">Complete System Reference — OpenCircle</div>
+  <div class="meta">Version 1.1 &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Internal Documentation</div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#overview">System Overview</a></li>
+    <li><a href="#behavior-score">Behavior Score</a></li>
+    <li><a href="#trust-tiers">Trust Tiers</a></li>
+    <li><a href="#earning-points">Earning Points — Full Action Table</a></li>
+    <li><a href="#deductions">Deductions &amp; Penalties</a></li>
+    <li><a href="#new-user-protection">New-User Protection</a></li>
+    <li><a href="#anti-gaming">Anti-Gaming Caps</a></li>
+    <li><a href="#event-rating">Event Rating Formula</a></li>
+    <li><a href="#user-reputation">User Reputation Score</a></li>
+    <li><a href="#reputation-tags">Reputation Tags</a></li>
+    <li><a href="#badges">Badges &amp; Awards</a></li>
+    <li><a href="#badge-logic">Badge Unlock Logic (Technical)</a></li>
+    <li><a href="#streaks">Streaks</a></li>
+    <li><a href="#summary">Quick-Reference Summary</a></li>
+  </ol>
+</div>
+
+<!-- 1. OVERVIEW -->
+<section id="overview">
+  <h2 class="section-title"><span class="num">1</span> System Overview</h2>
+  <p>OpenCircle uses three interlocking systems to measure and reward user quality:</p>
+  <ul>
+    <li><strong>Behavior Score</strong> — a running integer that reflects how reliably and respectfully a user participates. Every action in the app can add or subtract points.</li>
+    <li><strong>User Reputation Score</strong> — a 0–5 star rating calculated from peer reviews left by other attendees after events. Separate from the behavior score.</li>
+    <li><strong>Badges</strong> — permanent achievement medals awarded once when a user crosses a specific milestone. Earning a badge also adds a one-time bonus to the behavior score.</li>
+  </ul>
+  <div class="callout info">
+    <span class="callout-icon">ℹ️</span>
+    <div>All score mutations happen server-side through Supabase Edge Functions (<code>add-points</code>, <code>deduct-points</code>, <code>check-achievements</code>). The client can never directly modify its own score, ensuring integrity.</div>
+  </div>
+</section>
+
+<!-- 2. BEHAVIOR SCORE -->
+<section id="behavior-score">
+  <h2 class="section-title"><span class="num">2</span> Behavior Score</h2>
+
+  <h3>Starting Value</h3>
+  <p>Every new account begins with a behavior score of <strong>1,000 points</strong>. This places new users immediately in the <em>Reliable</em> tier, giving them full access to join and host events from day one.</p>
+
+  <h3>How it works</h3>
+  <p>The score is a non-negative integer stored in <code>profiles.behavior_score</code>. It can never go below <strong>0</strong>. Every transaction — positive or negative — is immutably logged in <code>behavior_score_log</code> with the action name, point delta, and running total, creating a full audit trail.</p>
+
+  <h3>Trust Tier</h3>
+  <p>After every score change the server recomputes the user's <strong>Trust Tier</strong> and updates <code>profiles.trust_tier</code> and <code>profiles.is_restricted</code> automatically. The tier determines what actions the user can take in the app.</p>
+</section>
+
+<!-- 3. TRUST TIERS -->
+<section id="trust-tiers">
+  <h2 class="section-title"><span class="num">3</span> Trust Tiers</h2>
+
+  <div class="tiers">
+    <div class="tier-card tier-trusted">
+      <span class="emoji">🥇</span>
+      <span class="name">Trusted</span>
+      <span class="range">1,200 +</span>
+      <span class="perms">✅ Join events<br/>✅ Host events<br/>✅ Diamond eligible</span>
+    </div>
+    <div class="tier-card tier-reliable">
+      <span class="emoji">🥈</span>
+      <span class="name">Reliable</span>
+      <span class="range">1,000 – 1,199</span>
+      <span class="perms">✅ Join events<br/>✅ Host events</span>
+    </div>
+    <div class="tier-card tier-casual">
+      <span class="emoji">🥉</span>
+      <span class="name">Casual</span>
+      <span class="range">900 – 999</span>
+      <span class="perms">✅ Join events<br/>✅ Host events</span>
+    </div>
+    <div class="tier-card tier-flagged">
+      <span class="emoji">⚠️</span>
+      <span class="name">Flagged</span>
+      <span class="range">800 – 899</span>
+      <span class="perms">✅ Join events<br/>❌ Cannot host</span>
+    </div>
+    <div class="tier-card tier-restricted">
+      <span class="emoji">🚫</span>
+      <span class="name">Restricted</span>
+      <span class="range">0 – 799</span>
+      <span class="perms">❌ Cannot join<br/>❌ Cannot host</span>
+    </div>
+  </div>
+
+  <div class="score-bar">
+    <div class="score-segment" style="width:16%;background:#EF4444;">Restricted</div>
+    <div class="score-segment" style="width:10%;background:#F97316;">Flagged</div>
+    <div class="score-segment" style="width:20%;background:#D97706;">Casual</div>
+    <div class="score-segment" style="width:24%;background:#9CA3AF;">Reliable</div>
+    <div class="score-segment" style="width:30%;background:#F59E0B;">Trusted ★</div>
+  </div>
+  <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">Score bar — 0 on left, 1,200+ on right</p>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div><strong>Permanently Banned</strong> — users who receive the <code>predatory_behavior</code> deduction (−1,000 pts) are flagged <code>is_permanently_banned = true</code>. They cannot gain points and further deductions are blocked. This flag can only be cleared by an administrator.</div>
+  </div>
+</section>
+
+<!-- 4. EARNING POINTS -->
+<section id="earning-points">
+  <h2 class="section-title"><span class="num">4</span> Earning Points — Full Action Table</h2>
+
+  <h3>App &amp; Profile Actions</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Daily Login</td><td>+2</td><td>Once per 24-hour window</td></tr>
+      <tr><td>Complete Profile</td><td>+10</td><td>One-time, lifetime award</td></tr>
+      <tr><td>Add Profile Photo</td><td>+5</td><td>One-time, lifetime award</td></tr>
+      <tr><td>Write Bio</td><td>+5</td><td>One-time, lifetime award</td></tr>
+      <tr><td>First Event Joined</td><td>+20</td><td>One-time, lifetime award</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Event Attendance</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Join an Event</td><td>+5</td><td>Each event joined</td></tr>
+      <tr><td>Join Event Early (bonus)</td><td>+3</td><td>When joining ≥ 24 hrs before event start</td></tr>
+      <tr><td>Chat Message in Event Group</td><td>+2</td><td>Capped at 5 rewarded messages per event (+10 max per event)</td></tr>
+      <tr><td>Geofence Confirmed Attendance</td><td>+10</td><td>GPS confirms physical presence at event</td></tr>
+      <tr><td>Leave a Review</td><td>+5</td><td>After attending an event</td></tr>
+      <tr><td>Receive a 5★ Rating</td><td>+10</td><td>From a peer after an event</td></tr>
+      <tr><td>Receive a 4★ Rating</td><td>+5</td><td>From a peer after an event</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Live Event Mode</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Post a Live Photo</td><td>+8</td><td>During active event window</td></tr>
+      <tr><td>Post a Live Video</td><td>+10</td><td>During active event window</td></tr>
+      <tr><td>Post Shared Externally</td><td>+15</td><td>Requires verified external click</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sharing &amp; Growth</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Share an Event</td><td>+10</td><td>Requires verified external click</td></tr>
+      <tr><td>Join via Shared Link</td><td>+20</td><td>User joined from another user's share</td></tr>
+      <tr><td>Vouch a User</td><td>+5</td><td>Per vouch given to another user</td></tr>
+      <tr><td>Get Vouched</td><td>+15</td><td>Per vouch received from another user</td></tr>
+      <tr><td>Refer a Friend</td><td>+30</td><td>Only after referred friend attends their first event</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Hosting</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>First Event Hosted</td><td>+25</td><td>One-time, lifetime award</td></tr>
+      <tr><td>Host Event Rated Above 4.0★</td><td>+20</td><td>Per qualifying event</td></tr>
+      <tr><td>Host Event Rated Above 4.5★</td><td>+35</td><td>Per qualifying event (replaces the 4.0 bonus)</td></tr>
+      <tr><td>Full Attendance at Hosted Event</td><td>+25</td><td>Every guest spot filled</td></tr>
+      <tr><td>Respond to Attendee within 1 hr</td><td>+5</td><td>Per qualifying response</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 5. DEDUCTIONS -->
+<section id="deductions">
+  <h2 class="section-title"><span class="num">5</span> Deductions &amp; Penalties</h2>
+  <p>Deductions are split into two categories: <strong>recoverable mistakes</strong> (behavioural lapses that users can come back from) and <strong>zero-tolerance violations</strong> (inappropriate behaviour that bypasses all protections).</p>
+
+  <h3>Recoverable Deductions</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Points</th><th>Protection Applies?</th></tr></thead>
+    <tbody>
+      <tr><td>No-Show (confirmed absent)</td><td>−30</td><td>✅ First offence → warning only (new users)</td></tr>
+      <tr><td>Late Cancellation</td><td>−20</td><td>✅ First offence → warning only (new users)</td></tr>
+      <tr><td>Hosted Event Rated Below 2.0★</td><td>−20</td><td>❌ No protection</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Zero-Tolerance Deductions</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🚫</span>
+    <div>These actions bypass new-user protection entirely. They are applied immediately on admin confirmation and logged with full context.</div>
+  </div>
+  <table>
+    <thead><tr><th>Violation</th><th>Points</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td>Harassment (confirmed)</td><td>−200</td><td>May trigger Restricted tier</td></tr>
+      <tr><td>Hate Speech</td><td>−300</td><td>May trigger Restricted tier</td></tr>
+      <tr><td>Inappropriate Live Content</td><td>−150</td><td>May trigger Restricted tier</td></tr>
+      <tr><td>Fake Reviews</td><td>−200</td><td>May trigger Restricted tier</td></tr>
+      <tr><td>Multiple Confirmed Reports</td><td>−100 per report</td><td>Cumulative</td></tr>
+      <tr><td><strong>Predatory Behavior</strong></td><td><strong>−1,000</strong></td><td><strong>Permanent ban flag set</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 6. NEW-USER PROTECTION -->
+<section id="new-user-protection">
+  <h2 class="section-title"><span class="num">6</span> New-User Protection</h2>
+  <p>New users are given a grace period during which minor mistakes don't immediately harm their score. This encourages genuine participation without fear of being permanently disadvantaged by an early mistake.</p>
+
+  <h3>How Protection Works</h3>
+  <ul>
+    <li>Protection is active for <strong>30 days</strong> from account creation, stored in <code>new_user_protection_expiry</code>.</li>
+    <li>Protection <strong>automatically expires early</strong> if the user's score exceeds <strong>1,050</strong> — indicating they're no longer a genuine newcomer.</li>
+    <li>During the protection window, the <strong>first no-show</strong> is converted to a warning (no points lost). The same applies to the <strong>first late cancellation</strong>.</li>
+    <li>After each first-offence warning, the corresponding flag (<code>first_no_show_warning_given</code>, <code>first_late_cancel_warning_given</code>) is set to true — the next offence will deduct points normally, even within the protection window.</li>
+  </ul>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div><strong>What protection covers:</strong> first no-show, first late cancellation.<br/>
+    <strong>What it never covers:</strong> inappropriate-behaviour violations (harassment, hate speech, fake reviews, predatory behaviour, inappropriate content).</div>
+  </div>
+
+  <h3>Expiry Conditions (either is enough to end protection)</h3>
+  <table>
+    <thead><tr><th>Condition</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>30 calendar days have elapsed</td><td>Protection ends naturally</td></tr>
+      <tr><td>Score exceeds 1,050 points</td><td>Protection ends early</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 7. ANTI-GAMING -->
+<section id="anti-gaming">
+  <h2 class="section-title"><span class="num">7</span> Anti-Gaming Caps</h2>
+  <p>To prevent abuse, several actions have server-enforced limits:</p>
+  <table>
+    <thead><tr><th>Action</th><th>Cap</th><th>How Enforced</th></tr></thead>
+    <tbody>
+      <tr><td>Daily Login</td><td>Once per 24 hours</td><td>Checks <code>behavior_score_log</code> for the action in the last 24 hrs; skips if found</td></tr>
+      <tr><td>Chat Message Reward</td><td>5 messages per event</td><td><code>event_message_rewards</code> table tracks count per (user, event) pair</td></tr>
+      <tr><td>Complete Profile</td><td>Lifetime once</td><td>Checks <code>behavior_score_log</code> for prior award; skips if found</td></tr>
+      <tr><td>Add Profile Photo</td><td>Lifetime once</td><td>Same as above</td></tr>
+      <tr><td>Write Bio</td><td>Lifetime once</td><td>Same as above</td></tr>
+      <tr><td>First Event Joined</td><td>Lifetime once</td><td>Same as above</td></tr>
+      <tr><td>First Event Hosted</td><td>Lifetime once</td><td>Same as above</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 8. EVENT RATING -->
+<section id="event-rating" class="page-break">
+  <h2 class="section-title"><span class="num">8</span> Event Rating Formula</h2>
+  <p>Each completed event gets an aggregate star rating displayed publicly on event cards. The formula is designed to be <em>generous but not inflatable</em> — silent attendees (those who didn't leave a review) contribute positively but at half weight.</p>
+
+  <h3>The Formula</h3>
+  <div class="formula">
+R = (sum_actual + silent_count × 2.5) / (5 × (reviewer_count + silent_count / 2))
+score = R × 5    →    range [0.0, 5.0]
+  </div>
+
+  <h3>Variable Definitions</h3>
+  <table>
+    <thead><tr><th>Variable</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>sum_actual</code></td><td>Sum of all explicit star ratings (1–5) submitted by reviewers</td></tr>
+      <tr><td><code>reviewer_count</code></td><td>Number of attendees who submitted an explicit star rating</td></tr>
+      <tr><td><code>silent_count</code></td><td><code>total_attendees − reviewer_count</code> — those who attended but didn't review</td></tr>
+      <tr><td><code>silent_count × 2.5</code></td><td>Each silent attendee contributes the equivalent of a half-weight 5★ review</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Worked Example</h3>
+  <p>An event has <strong>10 total attendees</strong>. 4 leave reviews: two 5★, one 4★, one 3★. The other 6 attended silently.</p>
+  <div class="formula">
+sum_actual   = (5+5+4+3) = 17
+silent_count = 10 − 4   = 6
+reviewer_count           = 4
+
+numerator    = 17 + (6 × 2.5) = 17 + 15 = 32
+denominator  = 5 × (4 + 6/2)  = 5 × 7   = 35
+
+R     = 32 / 35 ≈ 0.914
+score = 0.914 × 5 ≈ 4.57 ★
+  </div>
+
+  <h3>When is a rating shown?</h3>
+  <ul>
+    <li>If <code>total_attendees = 0</code> → rating is <code>null</code> (not displayed)</li>
+    <li>If <code>reviewer_count = 0</code> → "No reviews yet"</li>
+    <li>Otherwise → the computed score is shown rounded to 2 decimal places</li>
+  </ul>
+
+  <h3>Review Window</h3>
+  <div class="callout info">
+    <span class="callout-icon">⏱️</span>
+    <div>Event star ratings can only be submitted within a <strong>48-hour window</strong> after the event ends. This deadline is enforced server-side by Supabase RLS policy on the <code>event_ratings</code> table — the client cannot bypass it. After the window closes the row becomes read-only.</div>
+  </div>
+</section>
+
+<!-- 9. USER REPUTATION -->
+<section id="user-reputation">
+  <h2 class="section-title"><span class="num">9</span> User Reputation Score</h2>
+  <p>The user reputation score measures how well-regarded a person is by their peers, based on star ratings received after events. It is distinct from the behavior score.</p>
+
+  <h3>Two Calculation Modes</h3>
+
+  <table>
+    <thead><tr><th>Mode</th><th>Condition</th><th>Formula</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>New</strong></td>
+        <td>Fewer than 3 ratings received</td>
+        <td>Displays as <strong>"New"</strong> — too few data points</td>
+      </tr>
+      <tr>
+        <td><strong>Bootstrap</strong></td>
+        <td>3 – 10 ratings received</td>
+        <td>Simple average of all ratings</td>
+      </tr>
+      <tr>
+        <td><strong>Full</strong></td>
+        <td>More than 10 ratings received</td>
+        <td>60 % weight on last 10 ratings + 40 % weight on all older ratings</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Full Mode Formula</h3>
+  <div class="formula">
+recent_avg  = average of the last 10 ratings received
+old_avg     = average of all ratings before the most recent 10
+
+score = (0.4 × old_avg) + (0.6 × recent_avg)    →    range [0.0, 5.0]
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div>The 60/40 split means recent behaviour matters more than historical. A user who previously had a low reputation can actively improve it by earning better ratings in recent events. Ratings are ordered oldest → newest for the calculation.</div>
+  </div>
+
+  <h3>Score Display</h3>
+  <table>
+    <thead><tr><th>Score</th><th>Label</th><th>Colour</th></tr></thead>
+    <tbody>
+      <tr><td>"New"</td><td>New</td><td>Grey</td></tr>
+      <tr><td>0.0 – 2.9</td><td>(Shown as raw number)</td><td>Grey</td></tr>
+      <tr><td>3.0 – 3.9</td><td>Good</td><td>Amber</td></tr>
+      <tr><td>4.0 – 4.4</td><td>Great</td><td>Orange</td></tr>
+      <tr><td>4.5 – 5.0</td><td>Excellent</td><td>Green</td></tr>
+    </tbody>
+  </table>
+
+  <h3>User Rating Submission Flow</h3>
+  <p>User-to-user ratings are submitted from another user's profile page. The following rules are enforced:</p>
+  <ul>
+    <li><strong>Shared attendance required:</strong> you can only rate someone you attended an event with. The app finds the most recent shared event where you haven't already rated them.</li>
+    <li><strong>One rating per (rater, rated, event) triplet:</strong> enforced by a <code>UNIQUE(rater_id, rated_id, event_id)</code> constraint in the <code>user_ratings</code> table. Rating the same person again for a different shared event is allowed.</li>
+    <li><strong>Star score + tags submitted together:</strong> the rater provides a 1–5 star score and selects one or more reputation tags in the same submission. Both are stored on the same <code>user_ratings</code> row.</li>
+    <li><strong>Score precision:</strong> the <code>score</code> column is <code>NUMERIC(2,1)</code>, allowing half-star granularity (e.g. 4.5) in future if the UI supports it. Currently the UI collects whole stars only.</li>
+    <li><strong>Points awarded on submit:</strong> the rater earns <code>+5</code> (<code>leave_review</code>) and the rated user earns <code>+10</code> for a 5★ or <code>+5</code> for a 4★ via the <code>add-points</code> edge function.</li>
+  </ul>
+  <div class="callout info">
+    <span class="callout-icon">🔍</span>
+    <div>After a rating is submitted, <code>check-achievements</code> is called for <em>both</em> the rater and the rated user so that any newly triggered badges (e.g. First Timer, Social Butterfly) are awarded immediately.</div>
+  </div>
+</section>
+
+<!-- 10. REPUTATION TAGS -->
+<section id="reputation-tags">
+  <h2 class="section-title"><span class="num">10</span> Reputation Tags</h2>
+  <p>Reputation tags are short qualitative labels that attendees can attach to a user-to-user rating. They give a human-readable summary of someone's social presence beyond a star number, and are displayed as counts on every user's profile page.</p>
+
+  <h3>The 10 Available Tags</h3>
+  <p>Tags are defined as a fixed constant list in the app (<code>src/constants/reputationTags.ts</code>). A rater may select any combination of them when submitting a rating.</p>
+
+  <style>
+    .tag-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 24px; }
+    .tag-chip {
+      background: #EFF6FF;
+      border: 1.5px solid #3B82F6;
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1D4ED8;
+      white-space: nowrap;
+    }
+  </style>
+
+  <div class="tag-grid">
+    <span class="tag-chip">😊 Friendly</span>
+    <span class="tag-chip">✅ Reliable</span>
+    <span class="tag-chip">🎉 Fun</span>
+    <span class="tag-chip">👑 Great Host</span>
+    <span class="tag-chip">📋 Organized</span>
+    <span class="tag-chip">🤝 Welcoming</span>
+    <span class="tag-chip">⚡ Active</span>
+    <span class="tag-chip">✨ Good Vibes</span>
+    <span class="tag-chip">🙏 Respectful</span>
+    <span class="tag-chip">⏰ Punctual</span>
+  </div>
+
+  <h3>How Tags Are Stored</h3>
+  <p>Tags are stored as a <code>TEXT[]</code> array on the <code>user_ratings</code> row alongside the star score. Each tag received is counted client-side from the raw array via <code>fetchReputationTags(userId)</code>, which returns a map of <code>{ tagName: count }</code>.</p>
+
+  <h3>Vouch Count</h3>
+  <p>The profile page shows a single <strong>vouch count</strong> number — the total of all tag instances a user has ever received across all their ratings. This is computed by <code>fetchVoucheCount()</code>, which simply sums the values from the tag count map. A user who received "Friendly × 8, Reliable × 5, Fun × 3" has a vouch count of 16.</p>
+
+  <div class="callout info">
+    <span class="callout-icon">📌</span>
+    <div>Tags do <strong>not</strong> directly affect the behavior score or reputation score — they are a display-only social signal. The only score impact comes from the star component of the same rating (see §9).</div>
+  </div>
+
+  <h3>Tag Display Rules</h3>
+  <table>
+    <thead><tr><th>Condition</th><th>Display</th></tr></thead>
+    <tbody>
+      <tr><td>User has received no tags yet</td><td>Tag section is hidden on profile</td></tr>
+      <tr><td>1 or more tags received</td><td>Top tags displayed by count, descending</td></tr>
+      <tr><td>Multiple tags with equal count</td><td>Listed in the order they appear in the constant list</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 11. BADGES -->
+<section id="badges" class="page-break">
+  <h2 class="section-title"><span class="num">11</span> Badges &amp; Awards</h2>
+  <p>Badges are permanent achievements awarded once when a user crosses a milestone. Each badge also grants a one-time bonus to the user's behavior score. Newly earned badges are marked <code>seen = false</code> so the app can surface a "new badge" notification on the profile tab.</p>
+
+  <div class="badges">
+
+    <div class="badge-card">
+      <span class="badge-emoji">🥇</span>
+      <div class="badge-info">
+        <div class="badge-name">First Timer</div>
+        <div class="badge-pts">+25 pts</div>
+        <div class="badge-desc">Attend your very first event on OpenCircle.</div>
+        <div class="badge-cond">Condition: events attended ≥ 1</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🔥</span>
+      <div class="badge-info">
+        <div class="badge-name">On Fire</div>
+        <div class="badge-pts">+50 pts</div>
+        <div class="badge-desc">Attend events in 3 consecutive weeks without missing a week.</div>
+        <div class="badge-cond">Condition: weekly attendance streak ≥ 3</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">👑</span>
+      <div class="badge-info">
+        <div class="badge-name">Host</div>
+        <div class="badge-pts">+50 pts</div>
+        <div class="badge-desc">Host an event that receives an average rating above 3.0★ from attendees.</div>
+        <div class="badge-cond">Condition: at least 1 hosted event with avg rating &gt; 3.0★</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🦋</span>
+      <div class="badge-info">
+        <div class="badge-name">Social Butterfly</div>
+        <div class="badge-pts">+40 pts</div>
+        <div class="badge-desc">Send at least one message in 10 different event group chats.</div>
+        <div class="badge-cond">Condition: distinct event chats messaged in ≥ 10</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🏹</span>
+      <div class="badge-info">
+        <div class="badge-name">Specialist</div>
+        <div class="badge-pts">+45 pts</div>
+        <div class="badge-desc">Attend 5 or more events all in the same category (e.g. Sports, Food, Study).</div>
+        <div class="badge-cond">Condition: max events in any single category ≥ 5</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">⚡</span>
+      <div class="badge-info">
+        <div class="badge-name">Early Bird</div>
+        <div class="badge-pts">+30 pts</div>
+        <div class="badge-desc">Join 5 or more events at least 24 hours before their start time.</div>
+        <div class="badge-cond">Condition: early joins (≥ 24 hrs advance) ≥ 5</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🚀</span>
+      <div class="badge-info">
+        <div class="badge-name">Explorer</div>
+        <div class="badge-pts">+60 pts</div>
+        <div class="badge-desc">Attend events across 5 or more different categories. Branch out!</div>
+        <div class="badge-cond">Condition: distinct event categories attended ≥ 5</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">💎</span>
+      <div class="badge-info">
+        <div class="badge-name">Diamond</div>
+        <div class="badge-pts">+100 pts</div>
+        <div class="badge-desc">Maintain a Trusted tier behavior score (1,200+) for 30 consecutive days without dropping below.</div>
+        <div class="badge-cond">Condition: score ≥ 1,200 sustained for ≥ 30 days continuously</div>
+      </div>
+    </div>
+
+  </div>
+
+  <h3>Badge Points Summary</h3>
+  <table>
+    <thead><tr><th>Badge</th><th>Bonus Points</th><th>Difficulty</th></tr></thead>
+    <tbody>
+      <tr><td>🥇 First Timer</td><td>+25</td><td>Trivial — just show up once</td></tr>
+      <tr><td>⚡ Early Bird</td><td>+30</td><td>Easy — plan ahead 5 times</td></tr>
+      <tr><td>🔥 On Fire</td><td>+50</td><td>Medium — 3 weeks of consistent attendance</td></tr>
+      <tr><td>👑 Host</td><td>+50</td><td>Medium — host a well-rated event</td></tr>
+      <tr><td>🦋 Social Butterfly</td><td>+40</td><td>Medium — chat in 10 different events</td></tr>
+      <tr><td>🏹 Specialist</td><td>+45</td><td>Medium — attend 5 events in one category</td></tr>
+      <tr><td>🚀 Explorer</td><td>+60</td><td>Medium — attend 5 different categories</td></tr>
+      <tr><td>💎 Diamond</td><td>+100</td><td>Hard — 30 days at Trusted tier continuously</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 12. BADGE LOGIC -->
+<section id="badge-logic" class="page-break">
+  <h2 class="section-title"><span class="num">12</span> Badge Unlock Logic (Technical)</h2>
+  <p>Badges are evaluated by the <code>check-achievements</code> Supabase Edge Function. It is called server-side after each relevant event (attendance, score change, message sent). The function never re-awards a badge the user already holds.</p>
+
+  <h3>Evaluation Flow</h3>
+  <ol>
+    <li>Fetch the user's existing badges into a Set (<code>alreadyEarned</code>).</li>
+    <li>In parallel, query: total attended count, category breakdown, early-join records, streak, hosted event ratings, social messages, Diamond threshold date, current behavior score.</li>
+    <li>Evaluate each badge condition. If the condition is met <em>and</em> the badge is not already earned → add it to <code>toAward</code>.</li>
+    <li>Upsert all newly earned badges with <code>seen = false</code> (triggers the in-app notification dot).</li>
+    <li>For each new badge, add the bonus points to the behavior score sequentially (to keep the running total accurate) and write a log entry with <code>action = badge_{key}</code>.</li>
+  </ol>
+
+  <h3>Diamond Badge — Special Tracking</h3>
+  <p>The Diamond badge requires the score to stay at 1,200+ for 30 consecutive days. This is tracked via the <code>achievement_progress</code> table:</p>
+  <ul>
+    <li>When the score <strong>crosses 1,200 upward</strong> for the first time, <code>diamond_threshold_reached</code> is set to the current timestamp.</li>
+    <li>If the score <strong>drops below 1,200</strong> at any point, <code>diamond_threshold_reached</code> is reset to <code>null</code> — the 30-day clock restarts.</li>
+    <li>The badge is only awarded when <code>score ≥ 1,200</code> AND <code>now() − diamond_threshold_reached ≥ 30 days</code>.</li>
+  </ul>
+
+  <h3>Social Butterfly — How Chats Are Counted</h3>
+  <p>The function infers distinct event chats from <code>behavior_score_log</code> rows where <code>action = 'event_chat_message'</code>. The <code>context</code> JSON field on each log entry stores the <code>event_id</code>. Distinct <code>event_id</code> values are counted — the badge requires at least 10 unique event chat rooms with at least one message sent.</p>
+
+  <h3>Early Bird — Timing Calculation</h3>
+  <p>For each event the user joined, the function compares <code>event_attendees.created_at</code> (when they joined) against <code>event.date_time</code> (event start). If the gap is ≥ 24 hours (86,400,000 ms), it counts as an early join. The badge requires at least 5 such events.</p>
+
+  <h3>Host Badge — Rating Verification</h3>
+  <p>The function fetches all events where <code>profile_id = user_id</code>, then pulls all <code>event_ratings</code> for those events. It groups stars by event and computes a simple average. If any hosted event has an average &gt; 3.0★, the badge is awarded.</p>
+</section>
+
+<!-- 13. STREAKS -->
+<section id="streaks">
+  <h2 class="section-title"><span class="num">13</span> Streaks</h2>
+  <p>Weekly attendance streaks are tracked separately in the <code>user_streaks</code> table and are managed by the <code>update-streak</code> Edge Function, called after each confirmed attendance.</p>
+
+  <h3>Streak Rules</h3>
+  <ul>
+    <li>A "week" is a rolling 7-day window — attending at least one event per 7 days keeps the streak alive.</li>
+    <li>Missing a full 7-day window resets <code>current_streak</code> to 0. <code>longest_streak</code> is never reset.</li>
+    <li><code>current_streak</code> is the number of consecutive weeks with at least one attended event.</li>
+    <li><code>longest_streak</code> is the all-time personal best consecutive-week count, updated whenever <code>current_streak</code> exceeds it.</li>
+    <li><code>last_attended_week</code> stores the ISO date of the Monday that started the most recently active week, used to detect gaps.</li>
+    <li>The <strong>On Fire</strong> badge requires <code>current_streak ≥ 3</code>.</li>
+  </ul>
+
+  <h3>Streak Columns (<code>user_streaks</code>)</h3>
+  <table>
+    <thead><tr><th>Column</th><th>Type</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>current_streak</code></td><td>INT</td><td>Active consecutive-week count. Resets to 0 on a missed week.</td></tr>
+      <tr><td><code>longest_streak</code></td><td>INT</td><td>All-time personal best. Never decreases.</td></tr>
+      <tr><td><code>last_attended_week</code></td><td>DATE</td><td>Monday of the last week the user attended an event.</td></tr>
+      <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>Timestamp of the last streak recalculation.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="callout-icon">🔥</span>
+    <div>The streak displayed on the Profile tab comes from <code>user_streaks.current_streak</code>. Streaks are not directly tied to the behavior score — they only trigger badge conditions.</div>
+  </div>
+</section>
+
+<!-- 14. SUMMARY -->
+<section id="summary">
+  <h2 class="section-title"><span class="num">14</span> Quick-Reference Summary</h2>
+
+  <h3>Starting Point</h3>
+  <ul>
+    <li>Every new user starts at <strong>1,000 behavior score</strong> → Reliable tier</li>
+    <li>New-user protection is active for <strong>30 days</strong> (or until score &gt; 1,050)</li>
+    <li>Reputation score shows <strong>"New"</strong> until 3 peer ratings are received</li>
+  </ul>
+
+  <h3>Score Ranges at a Glance</h3>
+  <table>
+    <thead><tr><th>Score Range</th><th>Tier</th><th>Can Join</th><th>Can Host</th></tr></thead>
+    <tbody>
+      <tr><td>1,200 +</td><td>🥇 Trusted</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>1,000 – 1,199</td><td>🥈 Reliable</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>900 – 999</td><td>🥉 Casual</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>800 – 899</td><td>⚠️ Flagged</td><td>Yes</td><td>No</td></tr>
+      <tr><td>0 – 799</td><td>🚫 Restricted</td><td>No</td><td>No</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Maximum Points You Can Earn (One-Time Actions Only)</h3>
+  <table>
+    <thead><tr><th>Category</th><th>Max One-Time Points</th></tr></thead>
+    <tbody>
+      <tr><td>Profile setup (photo + bio + complete)</td><td>+20</td></tr>
+      <tr><td>First event joined</td><td>+20</td></tr>
+      <tr><td>First event hosted</td><td>+25</td></tr>
+      <tr><td>All badges combined</td><td>+400</td></tr>
+      <tr><td><strong>Total one-time maximum</strong></td><td><strong>+465 pts</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Fastest Way to Reach Trusted Tier (1,200)</h3>
+  <p>Starting from 1,000 (new user), a user needs <strong>+200 more points</strong>. Fastest route:</p>
+  <ol>
+    <li>Complete profile, add photo, write bio → <strong>+20</strong></li>
+    <li>Attend first event → <strong>+20 + 5 + 10</strong> (first-join bonus + join + geofence) = <strong>+35</strong></li>
+    <li>Leave a review → <strong>+5</strong></li>
+    <li>Join 4 more events with early bonus → <strong>+8 × 4 = +32</strong></li>
+    <li>Earn First Timer badge → <strong>+25</strong></li>
+    <li>Earn Early Bird badge → <strong>+30</strong></li>
+    <li>Remaining gap filled by daily logins, chat messages, ratings received</li>
+  </ol>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div>An active, well-behaved user can realistically reach <strong>Trusted tier within 2–4 weeks</strong> of regular use.</div>
+  </div>
+</section>
+
+<div class="doc-footer">
+  OpenCircle Internal Documentation &nbsp;·&nbsp; Reputation &amp; Rewards System v1.1 &nbsp;·&nbsp; June 2026
+</div>
+
+</body>
+</html>

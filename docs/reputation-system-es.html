@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OpenCircle — Sistema de Reputación, Insignias y Premios</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --orange: #FF6B00;
+    --purple: #7C3AED;
+    --green:  #22C55E;
+    --blue:   #3B82F6;
+    --red:    #EF4444;
+    --bg:     #ffffff;
+    --surface:#F8F9FB;
+    --border: #E5E7EB;
+    --text:   #111827;
+    --muted:  #6B7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 56px;
+  }
+
+  /* ── Portada ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    margin-bottom: 56px;
+    border-bottom: 3px solid var(--orange);
+    padding-bottom: 40px;
+  }
+  .cover-logo { font-size: 48px; margin-bottom: 12px; }
+  .cover h1 {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--orange);
+    letter-spacing: -0.5px;
+    text-align: center;
+  }
+  .cover .sub {
+    font-size: 15px;
+    color: var(--muted);
+    margin-top: 6px;
+    text-align: center;
+  }
+  .cover .meta {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ── Índice ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+  .toc ol { padding-left: 18px; }
+  .toc li { margin-bottom: 5px; font-size: 13.5px; }
+  .toc a { color: var(--orange); text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Secciones ── */
+  section { margin-bottom: 52px; }
+  h2.section-title {
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2.section-title .num {
+    background: var(--orange);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 24px 0 10px;
+  }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  strong { font-weight: 700; }
+  em { color: var(--muted); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout.info    { background: #EFF6FF; border-left: 4px solid var(--blue);   }
+  .callout.warning { background: #FFF7ED; border-left: 4px solid var(--orange); }
+  .callout.danger  { background: #FEF2F2; border-left: 4px solid var(--red);    }
+  .callout.success { background: #F0FDF4; border-left: 4px solid var(--green);  }
+
+  /* ── Tablas ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--surface);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border-bottom: 2px solid var(--border);
+  }
+  tbody td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+
+  /* ── Tarjetas de nivel ── */
+  .tiers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 16px 0 24px; }
+  .tier-card {
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    border: 1.5px solid var(--border);
+  }
+  .tier-card .emoji { font-size: 24px; display: block; margin-bottom: 6px; }
+  .tier-card .name  { font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px; }
+  .tier-card .range { font-size: 11px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .tier-card .perms { font-size: 10.5px; line-height: 1.5; color: var(--text); }
+  .tier-trusted    { border-color: #F59E0B; background: #FFFBEB; }
+  .tier-reliable   { border-color: #9CA3AF; background: #F9FAFB; }
+  .tier-casual     { border-color: #D97706; background: #FFFBEB; }
+  .tier-flagged    { border-color: #F97316; background: #FFF7ED; }
+  .tier-restricted { border-color: var(--red); background: #FEF2F2; }
+
+  /* ── Tarjetas de insignia ── */
+  .badges { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 16px 0; }
+  .badge-card {
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .badge-emoji { font-size: 32px; flex-shrink: 0; }
+  .badge-info .badge-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .badge-info .badge-pts  { font-size: 11px; font-weight: 700; color: var(--orange); margin-bottom: 5px; }
+  .badge-info .badge-desc { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .badge-info .badge-cond { font-size: 12px; color: var(--blue); font-weight: 500; }
+
+  /* ── Bloques de fórmula ── */
+  .formula {
+    background: #F3F4F6;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+
+  /* ── Barra de puntuación ── */
+  .score-bar { display: flex; height: 20px; border-radius: 6px; overflow: hidden; margin: 14px 0; }
+  .score-segment { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+
+  /* ── Salto de página ── */
+  @media print {
+    .page-break { page-break-before: always; }
+    body { padding: 32px 40px; }
+    .cover { min-height: 160px; }
+  }
+
+  /* ── Pie de documento ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  /* ── Etiquetas de reputación ── */
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 24px; }
+  .tag-chip {
+    background: #EFF6FF;
+    border: 1.5px solid #3B82F6;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1D4ED8;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-logo">⭕</div>
+  <h1>Reputación, Insignias y Premios</h1>
+  <div class="sub">Referencia Completa del Sistema — OpenCircle</div>
+  <div class="meta">Versión 1.1 &nbsp;·&nbsp; Junio 2026 &nbsp;·&nbsp; Documentación Interna</div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#overview">Descripción General del Sistema</a></li>
+    <li><a href="#behavior-score">Puntuación de Comportamiento</a></li>
+    <li><a href="#trust-tiers">Niveles de Confianza</a></li>
+    <li><a href="#earning-points">Ganar Puntos — Tabla Completa de Acciones</a></li>
+    <li><a href="#deductions">Deducciones y Penalizaciones</a></li>
+    <li><a href="#new-user-protection">Protección de Nuevo Usuario</a></li>
+    <li><a href="#anti-gaming">Límites Anti-Trampa</a></li>
+    <li><a href="#event-rating">Fórmula de Calificación de Eventos</a></li>
+    <li><a href="#user-reputation">Puntuación de Reputación de Usuario</a></li>
+    <li><a href="#reputation-tags">Etiquetas de Reputación</a></li>
+    <li><a href="#badges">Insignias y Premios</a></li>
+    <li><a href="#badge-logic">Lógica de Desbloqueo de Insignias (Técnico)</a></li>
+    <li><a href="#streaks">Rachas</a></li>
+    <li><a href="#summary">Resumen de Referencia Rápida</a></li>
+  </ol>
+</div>
+
+<!-- 1. DESCRIPCIÓN GENERAL -->
+<section id="overview">
+  <h2 class="section-title"><span class="num">1</span> Descripción General del Sistema</h2>
+  <p>OpenCircle utiliza tres sistemas interconectados para medir y recompensar la calidad de los usuarios:</p>
+  <ul>
+    <li><strong>Puntuación de Comportamiento</strong> — un entero acumulativo que refleja con qué fiabilidad y respeto participa un usuario. Cada acción en la app puede sumar o restar puntos.</li>
+    <li><strong>Puntuación de Reputación de Usuario</strong> — una calificación de 0 a 5 estrellas calculada a partir de reseñas entre pares dejadas por otros asistentes después de los eventos. Es independiente de la puntuación de comportamiento.</li>
+    <li><strong>Insignias</strong> — medallas de logro permanentes otorgadas una sola vez cuando un usuario supera un hito específico. Ganar una insignia también añade un bono único a la puntuación de comportamiento.</li>
+  </ul>
+  <div class="callout info">
+    <span class="callout-icon">ℹ️</span>
+    <div>Todas las modificaciones de puntuación ocurren en el servidor a través de Supabase Edge Functions (<code>add-points</code>, <code>deduct-points</code>, <code>check-achievements</code>). El cliente nunca puede modificar directamente su propia puntuación, garantizando la integridad del sistema.</div>
+  </div>
+</section>
+
+<!-- 2. PUNTUACIÓN DE COMPORTAMIENTO -->
+<section id="behavior-score">
+  <h2 class="section-title"><span class="num">2</span> Puntuación de Comportamiento</h2>
+
+  <h3>Valor Inicial</h3>
+  <p>Cada cuenta nueva comienza con una puntuación de comportamiento de <strong>1.000 puntos</strong>. Esto coloca a los nuevos usuarios de inmediato en el nivel <em>Confiable</em>, dándoles acceso completo para unirse y organizar eventos desde el primer día.</p>
+
+  <h3>Cómo Funciona</h3>
+  <p>La puntuación es un entero no negativo almacenado en <code>profiles.behavior_score</code>. Nunca puede bajar de <strong>0</strong>. Cada transacción — positiva o negativa — queda registrada de forma inmutable en <code>behavior_score_log</code> con el nombre de la acción, el delta de puntos y el total acumulado, creando un historial de auditoría completo.</p>
+
+  <h3>Nivel de Confianza</h3>
+  <p>Después de cada cambio de puntuación, el servidor recalcula el <strong>Nivel de Confianza</strong> del usuario y actualiza automáticamente <code>profiles.trust_tier</code> y <code>profiles.is_restricted</code>. El nivel determina qué acciones puede realizar el usuario en la app.</p>
+</section>
+
+<!-- 3. NIVELES DE CONFIANZA -->
+<section id="trust-tiers">
+  <h2 class="section-title"><span class="num">3</span> Niveles de Confianza</h2>
+
+  <div class="tiers">
+    <div class="tier-card tier-trusted">
+      <span class="emoji">🥇</span>
+      <span class="name">De Confianza</span>
+      <span class="range">1.200 +</span>
+      <span class="perms">✅ Unirse a eventos<br/>✅ Organizar eventos<br/>✅ Elegible para Diamante</span>
+    </div>
+    <div class="tier-card tier-reliable">
+      <span class="emoji">🥈</span>
+      <span class="name">Confiable</span>
+      <span class="range">1.000 – 1.199</span>
+      <span class="perms">✅ Unirse a eventos<br/>✅ Organizar eventos</span>
+    </div>
+    <div class="tier-card tier-casual">
+      <span class="emoji">🥉</span>
+      <span class="name">Casual</span>
+      <span class="range">900 – 999</span>
+      <span class="perms">✅ Unirse a eventos<br/>✅ Organizar eventos</span>
+    </div>
+    <div class="tier-card tier-flagged">
+      <span class="emoji">⚠️</span>
+      <span class="name">Marcado</span>
+      <span class="range">800 – 899</span>
+      <span class="perms">✅ Unirse a eventos<br/>❌ No puede organizar</span>
+    </div>
+    <div class="tier-card tier-restricted">
+      <span class="emoji">🚫</span>
+      <span class="name">Restringido</span>
+      <span class="range">0 – 799</span>
+      <span class="perms">❌ No puede unirse<br/>❌ No puede organizar</span>
+    </div>
+  </div>
+
+  <div class="score-bar">
+    <div class="score-segment" style="width:16%;background:#EF4444;">Restringido</div>
+    <div class="score-segment" style="width:10%;background:#F97316;">Marcado</div>
+    <div class="score-segment" style="width:20%;background:#D97706;">Casual</div>
+    <div class="score-segment" style="width:24%;background:#9CA3AF;">Confiable</div>
+    <div class="score-segment" style="width:30%;background:#F59E0B;">De Confianza ★</div>
+  </div>
+  <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">Barra de puntuación — 0 a la izquierda, 1.200+ a la derecha</p>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div><strong>Baneado Permanentemente</strong> — los usuarios que reciben la deducción <code>predatory_behavior</code> (−1.000 pts) son marcados con <code>is_permanently_banned = true</code>. No pueden ganar puntos y las deducciones adicionales quedan bloqueadas. Solo un administrador puede eliminar este indicador.</div>
+  </div>
+</section>
+
+<!-- 4. GANAR PUNTOS -->
+<section id="earning-points">
+  <h2 class="section-title"><span class="num">4</span> Ganar Puntos — Tabla Completa de Acciones</h2>
+
+  <h3>Acciones de App y Perfil</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Puntos</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td>Inicio de Sesión Diario</td><td>+2</td><td>Una vez por ventana de 24 horas</td></tr>
+      <tr><td>Completar Perfil</td><td>+10</td><td>Una vez, premio de por vida</td></tr>
+      <tr><td>Añadir Foto de Perfil</td><td>+5</td><td>Una vez, premio de por vida</td></tr>
+      <tr><td>Escribir Biografía</td><td>+5</td><td>Una vez, premio de por vida</td></tr>
+      <tr><td>Primer Evento Unido</td><td>+20</td><td>Una vez, premio de por vida</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Asistencia a Eventos</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Puntos</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td>Unirse a un Evento</td><td>+5</td><td>Por cada evento al que se une</td></tr>
+      <tr><td>Unirse Temprano al Evento (bono)</td><td>+3</td><td>Al unirse ≥ 24 horas antes del inicio del evento</td></tr>
+      <tr><td>Mensaje en el Chat Grupal del Evento</td><td>+2</td><td>Máximo 5 mensajes recompensados por evento (+10 máx. por evento)</td></tr>
+      <tr><td>Asistencia Confirmada por Geofence</td><td>+10</td><td>El GPS confirma la presencia física en el evento</td></tr>
+      <tr><td>Dejar una Reseña</td><td>+5</td><td>Después de asistir a un evento</td></tr>
+      <tr><td>Recibir una Calificación de 5★</td><td>+10</td><td>De un par después de un evento</td></tr>
+      <tr><td>Recibir una Calificación de 4★</td><td>+5</td><td>De un par después de un evento</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Modo Evento en Vivo</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Puntos</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td>Publicar una Foto en Vivo</td><td>+8</td><td>Durante la ventana activa del evento</td></tr>
+      <tr><td>Publicar un Video en Vivo</td><td>+10</td><td>Durante la ventana activa del evento</td></tr>
+      <tr><td>Publicación Compartida Externamente</td><td>+15</td><td>Requiere clic externo verificado</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Compartir y Crecimiento</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Puntos</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td>Compartir un Evento</td><td>+10</td><td>Requiere clic externo verificado</td></tr>
+      <tr><td>Unirse mediante Enlace Compartido</td><td>+20</td><td>Usuario se unió desde el enlace compartido de otro usuario</td></tr>
+      <tr><td>Avalar a un Usuario</td><td>+5</td><td>Por cada aval dado a otro usuario</td></tr>
+      <tr><td>Ser Avalado</td><td>+15</td><td>Por cada aval recibido de otro usuario</td></tr>
+      <tr><td>Referir a un Amigo</td><td>+30</td><td>Solo después de que el amigo referido asista a su primer evento</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Organización de Eventos</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Puntos</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td>Primer Evento Organizado</td><td>+25</td><td>Una vez, premio de por vida</td></tr>
+      <tr><td>Evento Organizado Calificado sobre 4,0★</td><td>+20</td><td>Por cada evento que cumpla el requisito</td></tr>
+      <tr><td>Evento Organizado Calificado sobre 4,5★</td><td>+35</td><td>Por evento (reemplaza el bono de 4,0)</td></tr>
+      <tr><td>Asistencia Completa en Evento Organizado</td><td>+25</td><td>Todos los cupos de asistentes cubiertos</td></tr>
+      <tr><td>Responder a un Asistente en menos de 1 hora</td><td>+5</td><td>Por respuesta que cumpla el requisito</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 5. DEDUCCIONES -->
+<section id="deductions">
+  <h2 class="section-title"><span class="num">5</span> Deducciones y Penalizaciones</h2>
+  <p>Las deducciones se dividen en dos categorías: <strong>errores recuperables</strong> (fallos de comportamiento de los que los usuarios pueden recuperarse) y <strong>violaciones de tolerancia cero</strong> (comportamientos inapropiados que omiten todas las protecciones).</p>
+
+  <h3>Deducciones Recuperables</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Puntos</th><th>¿Aplica Protección?</th></tr></thead>
+    <tbody>
+      <tr><td>No presentarse (ausencia confirmada)</td><td>−30</td><td>✅ Primera infracción → solo advertencia (nuevos usuarios)</td></tr>
+      <tr><td>Cancelación Tardía</td><td>−20</td><td>✅ Primera infracción → solo advertencia (nuevos usuarios)</td></tr>
+      <tr><td>Evento Organizado Calificado por debajo de 2,0★</td><td>−20</td><td>❌ Sin protección</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Deducciones de Tolerancia Cero</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🚫</span>
+    <div>Estas acciones omiten completamente la protección de nuevos usuarios. Se aplican de inmediato al confirmarse por un administrador y se registran con contexto completo.</div>
+  </div>
+  <table>
+    <thead><tr><th>Violación</th><th>Puntos</th><th>Efecto</th></tr></thead>
+    <tbody>
+      <tr><td>Acoso (confirmado)</td><td>−200</td><td>Puede activar el nivel Restringido</td></tr>
+      <tr><td>Discurso de Odio</td><td>−300</td><td>Puede activar el nivel Restringido</td></tr>
+      <tr><td>Contenido en Vivo Inapropiado</td><td>−150</td><td>Puede activar el nivel Restringido</td></tr>
+      <tr><td>Reseñas Falsas</td><td>−200</td><td>Puede activar el nivel Restringido</td></tr>
+      <tr><td>Múltiples Reportes Confirmados</td><td>−100 por reporte</td><td>Acumulativo</td></tr>
+      <tr><td><strong>Comportamiento Depredador</strong></td><td><strong>−1.000</strong></td><td><strong>Se activa el indicador de baneo permanente</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 6. PROTECCIÓN DE NUEVO USUARIO -->
+<section id="new-user-protection">
+  <h2 class="section-title"><span class="num">6</span> Protección de Nuevo Usuario</h2>
+  <p>Los nuevos usuarios reciben un período de gracia durante el cual los errores menores no perjudican inmediatamente su puntuación. Esto fomenta la participación genuina sin miedo a quedar en desventaja permanente por un error temprano.</p>
+
+  <h3>Cómo Funciona la Protección</h3>
+  <ul>
+    <li>La protección está activa durante <strong>30 días</strong> desde la creación de la cuenta, almacenada en <code>new_user_protection_expiry</code>.</li>
+    <li>La protección <strong>expira automáticamente antes</strong> si la puntuación del usuario supera <strong>1.050</strong> — lo que indica que ya no es un usuario genuinamente nuevo.</li>
+    <li>Durante la ventana de protección, la <strong>primera no presentación</strong> se convierte en advertencia (sin pérdida de puntos). Lo mismo aplica a la <strong>primera cancelación tardía</strong>.</li>
+    <li>Después de cada advertencia por primera infracción, el indicador correspondiente (<code>first_no_show_warning_given</code>, <code>first_late_cancel_warning_given</code>) se establece como verdadero — la siguiente infracción descontará puntos con normalidad, incluso dentro de la ventana de protección.</li>
+  </ul>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div><strong>Qué cubre la protección:</strong> primera no presentación, primera cancelación tardía.<br/>
+    <strong>Qué nunca cubre:</strong> violaciones de comportamiento inapropiado (acoso, discurso de odio, reseñas falsas, comportamiento depredador, contenido inapropiado).</div>
+  </div>
+
+  <h3>Condiciones de Expiración (cualquiera es suficiente para terminar la protección)</h3>
+  <table>
+    <thead><tr><th>Condición</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Han transcurrido 30 días calendario</td><td>La protección termina de forma natural</td></tr>
+      <tr><td>La puntuación supera los 1.050 puntos</td><td>La protección termina anticipadamente</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 7. LÍMITES ANTI-TRAMPA -->
+<section id="anti-gaming">
+  <h2 class="section-title"><span class="num">7</span> Límites Anti-Trampa</h2>
+  <p>Para evitar abusos, varias acciones tienen límites aplicados por el servidor:</p>
+  <table>
+    <thead><tr><th>Acción</th><th>Límite</th><th>Cómo se Aplica</th></tr></thead>
+    <tbody>
+      <tr><td>Inicio de Sesión Diario</td><td>Una vez por 24 horas</td><td>Verifica <code>behavior_score_log</code> para la acción en las últimas 24 hrs; omite si se encuentra</td></tr>
+      <tr><td>Recompensa por Mensaje en Chat</td><td>5 mensajes por evento</td><td>La tabla <code>event_message_rewards</code> rastrea el conteo por par (usuario, evento)</td></tr>
+      <tr><td>Completar Perfil</td><td>Una vez de por vida</td><td>Verifica <code>behavior_score_log</code> por premio previo; omite si se encuentra</td></tr>
+      <tr><td>Añadir Foto de Perfil</td><td>Una vez de por vida</td><td>Igual que el anterior</td></tr>
+      <tr><td>Escribir Biografía</td><td>Una vez de por vida</td><td>Igual que el anterior</td></tr>
+      <tr><td>Primer Evento Unido</td><td>Una vez de por vida</td><td>Igual que el anterior</td></tr>
+      <tr><td>Primer Evento Organizado</td><td>Una vez de por vida</td><td>Igual que el anterior</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 8. CALIFICACIÓN DE EVENTOS -->
+<section id="event-rating" class="page-break">
+  <h2 class="section-title"><span class="num">8</span> Fórmula de Calificación de Eventos</h2>
+  <p>Cada evento completado recibe una calificación de estrellas agregada que se muestra públicamente en las tarjetas de eventos. La fórmula está diseñada para ser <em>generosa pero no inflable</em> — los asistentes silenciosos (quienes no dejaron reseña) contribuyen positivamente pero con la mitad del peso.</p>
+
+  <h3>La Fórmula</h3>
+  <div class="formula">
+R = (suma_real + conteo_silencioso × 2,5) / (5 × (conteo_reseñadores + conteo_silencioso / 2))
+puntuación = R × 5    →    rango [0,0, 5,0]
+  </div>
+
+  <h3>Definición de Variables</h3>
+  <table>
+    <thead><tr><th>Variable</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td><code>sum_actual</code></td><td>Suma de todas las calificaciones de estrellas explícitas (1–5) enviadas por los reseñadores</td></tr>
+      <tr><td><code>reviewer_count</code></td><td>Número de asistentes que enviaron una calificación de estrellas explícita</td></tr>
+      <tr><td><code>silent_count</code></td><td><code>total_attendees − reviewer_count</code> — quienes asistieron pero no reseñaron</td></tr>
+      <tr><td><code>silent_count × 2,5</code></td><td>Cada asistente silencioso contribuye el equivalente a una reseña de 5★ con la mitad del peso</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Ejemplo Práctico</h3>
+  <p>Un evento tiene <strong>10 asistentes en total</strong>. 4 dejan reseñas: dos de 5★, una de 4★, una de 3★. Los otros 6 asistieron en silencio.</p>
+  <div class="formula">
+suma_real        = (5+5+4+3) = 17
+conteo_silencioso = 10 − 4   = 6
+conteo_reseñadores            = 4
+
+numerador    = 17 + (6 × 2,5) = 17 + 15 = 32
+denominador  = 5 × (4 + 6/2)  = 5 × 7   = 35
+
+R            = 32 / 35 ≈ 0,914
+puntuación   = 0,914 × 5 ≈ 4,57 ★
+  </div>
+
+  <h3>¿Cuándo se Muestra una Calificación?</h3>
+  <ul>
+    <li>Si <code>total_attendees = 0</code> → la calificación es <code>null</code> (no se muestra)</li>
+    <li>Si <code>reviewer_count = 0</code> → "Sin reseñas aún"</li>
+    <li>En caso contrario → la puntuación calculada se muestra redondeada a 2 decimales</li>
+  </ul>
+
+  <h3>Ventana de Reseña</h3>
+  <div class="callout info">
+    <span class="callout-icon">⏱️</span>
+    <div>Las calificaciones de estrellas de eventos solo pueden enviarse dentro de una <strong>ventana de 48 horas</strong> después de que termine el evento. Este plazo se aplica en el servidor mediante la política RLS de Supabase sobre la tabla <code>event_ratings</code> — el cliente no puede omitirla. Tras el cierre de la ventana, la fila queda en modo de solo lectura.</div>
+  </div>
+</section>
+
+<!-- 9. REPUTACIÓN DE USUARIO -->
+<section id="user-reputation">
+  <h2 class="section-title"><span class="num">9</span> Puntuación de Reputación de Usuario</h2>
+  <p>La puntuación de reputación de usuario mide cuán bien valorada es una persona por sus pares, basándose en las calificaciones de estrellas recibidas después de los eventos. Es distinta de la puntuación de comportamiento.</p>
+
+  <h3>Dos Modos de Cálculo</h3>
+
+  <table>
+    <thead><tr><th>Modo</th><th>Condición</th><th>Fórmula</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Nuevo</strong></td>
+        <td>Menos de 3 calificaciones recibidas</td>
+        <td>Se muestra como <strong>"Nuevo"</strong> — muy pocos datos</td>
+      </tr>
+      <tr>
+        <td><strong>Inicial</strong></td>
+        <td>Entre 3 y 10 calificaciones recibidas</td>
+        <td>Promedio simple de todas las calificaciones</td>
+      </tr>
+      <tr>
+        <td><strong>Completo</strong></td>
+        <td>Más de 10 calificaciones recibidas</td>
+        <td>60 % de peso en las últimas 10 calificaciones + 40 % en todas las anteriores</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Fórmula en Modo Completo</h3>
+  <div class="formula">
+promedio_reciente = promedio de las últimas 10 calificaciones recibidas
+promedio_antiguo  = promedio de todas las calificaciones anteriores a las más recientes 10
+
+puntuación = (0,4 × promedio_antiguo) + (0,6 × promedio_reciente)    →    rango [0,0, 5,0]
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div>La proporción 60/40 significa que el comportamiento reciente importa más que el histórico. Un usuario que anteriormente tenía una reputación baja puede mejorarla activamente obteniendo mejores calificaciones en eventos recientes. Las calificaciones se ordenan de más antiguas a más recientes para el cálculo.</div>
+  </div>
+
+  <h3>Visualización de la Puntuación</h3>
+  <table>
+    <thead><tr><th>Puntuación</th><th>Etiqueta</th><th>Color</th></tr></thead>
+    <tbody>
+      <tr><td>"Nuevo"</td><td>Nuevo</td><td>Gris</td></tr>
+      <tr><td>0,0 – 2,9</td><td>(Número sin etiqueta)</td><td>Gris</td></tr>
+      <tr><td>3,0 – 3,9</td><td>Bueno</td><td>Ámbar</td></tr>
+      <tr><td>4,0 – 4,4</td><td>Muy Bueno</td><td>Naranja</td></tr>
+      <tr><td>4,5 – 5,0</td><td>Excelente</td><td>Verde</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Flujo de Envío de Calificación entre Usuarios</h3>
+  <p>Las calificaciones entre usuarios se envían desde la página de perfil de otro usuario. Se aplican las siguientes reglas:</p>
+  <ul>
+    <li><strong>Asistencia compartida requerida:</strong> solo puedes calificar a alguien con quien hayas asistido a un evento. La app encuentra el evento compartido más reciente en el que aún no hayas calificado a esa persona.</li>
+    <li><strong>Una calificación por triplete (calificador, calificado, evento):</strong> aplicada por una restricción <code>UNIQUE(rater_id, rated_id, event_id)</code> en la tabla <code>user_ratings</code>. Se permite calificar a la misma persona en un evento compartido diferente.</li>
+    <li><strong>Puntuación de estrellas + etiquetas enviadas juntas:</strong> el calificador proporciona una puntuación de 1–5 estrellas y selecciona una o más etiquetas de reputación en el mismo envío. Ambos datos se almacenan en la misma fila de <code>user_ratings</code>.</li>
+    <li><strong>Precisión de la puntuación:</strong> la columna <code>score</code> es <code>NUMERIC(2,1)</code>, lo que permite granularidad de media estrella (por ej. 4,5) en el futuro si la UI lo soporta. Actualmente la UI solo recoge estrellas enteras.</li>
+    <li><strong>Puntos otorgados al enviar:</strong> el calificador gana <code>+5</code> (<code>leave_review</code>) y el usuario calificado gana <code>+10</code> por 5★ o <code>+5</code> por 4★ a través de la edge function <code>add-points</code>.</li>
+  </ul>
+  <div class="callout info">
+    <span class="callout-icon">🔍</span>
+    <div>Después de enviar una calificación, se llama a <code>check-achievements</code> tanto para el calificador como para el calificado, de modo que cualquier insignia recién activada (p. ej. Primera Vez, Mariposa Social) se otorgue de inmediato.</div>
+  </div>
+</section>
+
+<!-- 10. ETIQUETAS DE REPUTACIÓN -->
+<section id="reputation-tags">
+  <h2 class="section-title"><span class="num">10</span> Etiquetas de Reputación</h2>
+  <p>Las etiquetas de reputación son rótulos cualitativos breves que los asistentes pueden adjuntar a una calificación entre usuarios. Ofrecen un resumen legible de la presencia social de alguien más allá de un número de estrellas, y se muestran como contadores en la página de perfil de cada usuario.</p>
+
+  <h3>Las 10 Etiquetas Disponibles</h3>
+  <p>Las etiquetas están definidas como una lista constante fija en la app (<code>src/constants/reputationTags.ts</code>). Un calificador puede seleccionar cualquier combinación de ellas al enviar una calificación. Los valores guardados en la base de datos son los nombres en inglés.</p>
+
+  <div class="tag-grid">
+    <span class="tag-chip">😊 Amigable</span>
+    <span class="tag-chip">✅ Confiable</span>
+    <span class="tag-chip">🎉 Divertido</span>
+    <span class="tag-chip">👑 Gran Anfitrión</span>
+    <span class="tag-chip">📋 Organizado</span>
+    <span class="tag-chip">🤝 Acogedor</span>
+    <span class="tag-chip">⚡ Activo</span>
+    <span class="tag-chip">✨ Buena Onda</span>
+    <span class="tag-chip">🙏 Respetuoso</span>
+    <span class="tag-chip">⏰ Puntual</span>
+  </div>
+
+  <h3>Cómo se Almacenan las Etiquetas</h3>
+  <p>Las etiquetas se almacenan como un arreglo <code>TEXT[]</code> en la fila de <code>user_ratings</code> junto con la puntuación de estrellas. Cada etiqueta recibida se cuenta en el cliente a partir del arreglo sin procesar mediante <code>fetchReputationTags(userId)</code>, que devuelve un mapa de <code>{ nombreEtiqueta: conteo }</code>.</p>
+
+  <h3>Conteo de Avales</h3>
+  <p>La página de perfil muestra un único número de <strong>conteo de avales</strong> — el total de todas las instancias de etiquetas que un usuario ha recibido en todas sus calificaciones. Se calcula con <code>fetchVoucheCount()</code>, que simplemente suma los valores del mapa de conteo. Un usuario que recibió "Amigable × 8, Confiable × 5, Divertido × 3" tiene un conteo de avales de 16.</p>
+
+  <div class="callout info">
+    <span class="callout-icon">📌</span>
+    <div>Las etiquetas <strong>no</strong> afectan directamente la puntuación de comportamiento ni la de reputación — son una señal social de solo visualización. El único impacto en la puntuación proviene del componente de estrellas de la misma calificación (ver §9).</div>
+  </div>
+
+  <h3>Reglas de Visualización de Etiquetas</h3>
+  <table>
+    <thead><tr><th>Condición</th><th>Visualización</th></tr></thead>
+    <tbody>
+      <tr><td>El usuario no ha recibido etiquetas aún</td><td>La sección de etiquetas está oculta en el perfil</td></tr>
+      <tr><td>1 o más etiquetas recibidas</td><td>Las principales etiquetas se muestran por conteo, en orden descendente</td></tr>
+      <tr><td>Varias etiquetas con el mismo conteo</td><td>Se listan en el orden en que aparecen en la lista de constantes</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 11. INSIGNIAS -->
+<section id="badges" class="page-break">
+  <h2 class="section-title"><span class="num">11</span> Insignias y Premios</h2>
+  <p>Las insignias son logros permanentes otorgados una sola vez cuando un usuario supera un hito. Cada insignia también otorga un bono único a la puntuación de comportamiento del usuario. Las insignias recién ganadas se marcan con <code>seen = false</code> para que la app muestre una notificación de "nueva insignia" en la pestaña de perfil.</p>
+
+  <div class="badges">
+
+    <div class="badge-card">
+      <span class="badge-emoji">🥇</span>
+      <div class="badge-info">
+        <div class="badge-name">Primera Vez</div>
+        <div class="badge-pts">+25 pts</div>
+        <div class="badge-desc">Asiste a tu primer evento en OpenCircle.</div>
+        <div class="badge-cond">Condición: eventos asistidos ≥ 1</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🔥</span>
+      <div class="badge-info">
+        <div class="badge-name">En Llamas</div>
+        <div class="badge-pts">+50 pts</div>
+        <div class="badge-desc">Asiste a eventos en 3 semanas consecutivas sin perder ninguna.</div>
+        <div class="badge-cond">Condición: racha de asistencia semanal ≥ 3</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">👑</span>
+      <div class="badge-info">
+        <div class="badge-name">Anfitrión</div>
+        <div class="badge-pts">+50 pts</div>
+        <div class="badge-desc">Organiza un evento que reciba una calificación promedio superior a 3,0★ de los asistentes.</div>
+        <div class="badge-cond">Condición: al menos 1 evento organizado con calificación promedio &gt; 3,0★</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🦋</span>
+      <div class="badge-info">
+        <div class="badge-name">Mariposa Social</div>
+        <div class="badge-pts">+40 pts</div>
+        <div class="badge-desc">Envía al menos un mensaje en 10 chats grupales de eventos distintos.</div>
+        <div class="badge-cond">Condición: chats de eventos distintos en los que se escribió ≥ 10</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🏹</span>
+      <div class="badge-info">
+        <div class="badge-name">Especialista</div>
+        <div class="badge-pts">+45 pts</div>
+        <div class="badge-desc">Asiste a 5 o más eventos todos en la misma categoría (p. ej. Deportes, Comida, Estudio).</div>
+        <div class="badge-cond">Condición: máximo de eventos en una sola categoría ≥ 5</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">⚡</span>
+      <div class="badge-info">
+        <div class="badge-name">Madrugador</div>
+        <div class="badge-pts">+30 pts</div>
+        <div class="badge-desc">Únete a 5 o más eventos al menos 24 horas antes de su inicio.</div>
+        <div class="badge-cond">Condición: uniones tempranas (≥ 24 hrs de anticipación) ≥ 5</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">🚀</span>
+      <div class="badge-info">
+        <div class="badge-name">Explorador</div>
+        <div class="badge-pts">+60 pts</div>
+        <div class="badge-desc">Asiste a eventos de 5 o más categorías diferentes. ¡Amplía tus horizontes!</div>
+        <div class="badge-cond">Condición: categorías de eventos distintas asistidas ≥ 5</div>
+      </div>
+    </div>
+
+    <div class="badge-card">
+      <span class="badge-emoji">💎</span>
+      <div class="badge-info">
+        <div class="badge-name">Diamante</div>
+        <div class="badge-pts">+100 pts</div>
+        <div class="badge-desc">Mantén una puntuación de comportamiento en el nivel De Confianza (1.200+) durante 30 días consecutivos sin caer por debajo.</div>
+        <div class="badge-cond">Condición: puntuación ≥ 1.200 sostenida durante ≥ 30 días de forma continua</div>
+      </div>
+    </div>
+
+  </div>
+
+  <h3>Resumen de Puntos por Insignia</h3>
+  <table>
+    <thead><tr><th>Insignia</th><th>Puntos de Bono</th><th>Dificultad</th></tr></thead>
+    <tbody>
+      <tr><td>🥇 Primera Vez</td><td>+25</td><td>Trivial — solo preséntate una vez</td></tr>
+      <tr><td>⚡ Madrugador</td><td>+30</td><td>Fácil — planifica con anticipación 5 veces</td></tr>
+      <tr><td>🔥 En Llamas</td><td>+50</td><td>Media — 3 semanas de asistencia constante</td></tr>
+      <tr><td>👑 Anfitrión</td><td>+50</td><td>Media — organiza un evento bien calificado</td></tr>
+      <tr><td>🦋 Mariposa Social</td><td>+40</td><td>Media — escribe en 10 eventos distintos</td></tr>
+      <tr><td>🏹 Especialista</td><td>+45</td><td>Media — asiste a 5 eventos en una categoría</td></tr>
+      <tr><td>🚀 Explorador</td><td>+60</td><td>Media — asiste a 5 categorías distintas</td></tr>
+      <tr><td>💎 Diamante</td><td>+100</td><td>Difícil — 30 días en el nivel De Confianza de forma continua</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 12. LÓGICA DE INSIGNIAS -->
+<section id="badge-logic" class="page-break">
+  <h2 class="section-title"><span class="num">12</span> Lógica de Desbloqueo de Insignias (Técnico)</h2>
+  <p>Las insignias son evaluadas por la Supabase Edge Function <code>check-achievements</code>. Se llama en el servidor después de cada evento relevante (asistencia, cambio de puntuación, mensaje enviado). La función nunca vuelve a otorgar una insignia que el usuario ya posee.</p>
+
+  <h3>Flujo de Evaluación</h3>
+  <ol>
+    <li>Obtener las insignias existentes del usuario en un Set (<code>alreadyEarned</code>).</li>
+    <li>En paralelo, consultar: conteo total de asistencias, desglose por categoría, registros de unión temprana, racha, calificaciones de eventos organizados, mensajes sociales, fecha de umbral Diamante, puntuación de comportamiento actual.</li>
+    <li>Evaluar cada condición de insignia. Si la condición se cumple <em>y</em> la insignia aún no se ha ganado → añadirla a <code>toAward</code>.</li>
+    <li>Hacer upsert de todas las insignias recién ganadas con <code>seen = false</code> (activa el punto de notificación en la app).</li>
+    <li>Para cada nueva insignia, añadir los puntos de bono a la puntuación de comportamiento de forma secuencial (para mantener el total acumulado preciso) y escribir una entrada de registro con <code>action = badge_{key}</code>.</li>
+  </ol>
+
+  <h3>Insignia Diamante — Seguimiento Especial</h3>
+  <p>La insignia Diamante requiere que la puntuación se mantenga en 1.200+ durante 30 días consecutivos. Esto se rastrea mediante la tabla <code>achievement_progress</code>:</p>
+  <ul>
+    <li>Cuando la puntuación <strong>supera 1.200 por primera vez al alza</strong>, <code>diamond_threshold_reached</code> se establece con la marca de tiempo actual.</li>
+    <li>Si la puntuación <strong>cae por debajo de 1.200</strong> en algún momento, <code>diamond_threshold_reached</code> se restablece a <code>null</code> — el contador de 30 días reinicia.</li>
+    <li>La insignia solo se otorga cuando <code>score ≥ 1.200</code> Y <code>now() − diamond_threshold_reached ≥ 30 días</code>.</li>
+  </ul>
+
+  <h3>Mariposa Social — Cómo se Cuentan los Chats</h3>
+  <p>La función infiere los chats de eventos distintos a partir de las filas de <code>behavior_score_log</code> donde <code>action = 'event_chat_message'</code>. El campo JSON <code>context</code> de cada entrada de registro almacena el <code>event_id</code>. Se cuentan los valores distintos de <code>event_id</code> — la insignia requiere al menos 10 salas de chat de eventos únicas con al menos un mensaje enviado.</p>
+
+  <h3>Madrugador — Cálculo de Tiempo</h3>
+  <p>Para cada evento al que se unió el usuario, la función compara <code>event_attendees.created_at</code> (cuándo se unió) con <code>event.date_time</code> (inicio del evento). Si la diferencia es ≥ 24 horas (86.400.000 ms), cuenta como unión temprana. La insignia requiere al menos 5 de esos eventos.</p>
+
+  <h3>Insignia Anfitrión — Verificación de Calificación</h3>
+  <p>La función obtiene todos los eventos donde <code>profile_id = user_id</code>, luego recupera todas las <code>event_ratings</code> de esos eventos. Agrupa las estrellas por evento y calcula un promedio simple. Si algún evento organizado tiene un promedio &gt; 3,0★, se otorga la insignia.</p>
+</section>
+
+<!-- 13. RACHAS -->
+<section id="streaks">
+  <h2 class="section-title"><span class="num">13</span> Rachas</h2>
+  <p>Las rachas de asistencia semanal se rastrean por separado en la tabla <code>user_streaks</code> y son gestionadas por la Edge Function <code>update-streak</code>, que se llama después de cada asistencia confirmada.</p>
+
+  <h3>Reglas de Racha</h3>
+  <ul>
+    <li>Una "semana" es una ventana móvil de 7 días — asistir al menos a un evento por 7 días mantiene la racha activa.</li>
+    <li>Perder una ventana completa de 7 días restablece <code>current_streak</code> a 0. <code>longest_streak</code> nunca se restablece.</li>
+    <li><code>current_streak</code> es el número de semanas consecutivas con al menos un evento asistido.</li>
+    <li><code>longest_streak</code> es el récord personal histórico de semanas consecutivas, actualizado cada vez que <code>current_streak</code> lo supera.</li>
+    <li><code>last_attended_week</code> almacena la fecha ISO del lunes que inició la semana activa más reciente, usada para detectar brechas.</li>
+    <li>La insignia <strong>En Llamas</strong> requiere <code>current_streak ≥ 3</code>.</li>
+  </ul>
+
+  <h3>Columnas de Racha (<code>user_streaks</code>)</h3>
+  <table>
+    <thead><tr><th>Columna</th><th>Tipo</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td><code>current_streak</code></td><td>INT</td><td>Conteo activo de semanas consecutivas. Se restablece a 0 al perder una semana.</td></tr>
+      <tr><td><code>longest_streak</code></td><td>INT</td><td>Récord personal histórico. Nunca disminuye.</td></tr>
+      <tr><td><code>last_attended_week</code></td><td>DATE</td><td>Lunes de la última semana en que el usuario asistió a un evento.</td></tr>
+      <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>Marca de tiempo del último recálculo de racha.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="callout-icon">🔥</span>
+    <div>La racha que se muestra en la pestaña de Perfil proviene de <code>user_streaks.current_streak</code>. Las rachas no están vinculadas directamente a la puntuación de comportamiento — solo activan condiciones de insignias.</div>
+  </div>
+</section>
+
+<!-- 14. RESUMEN -->
+<section id="summary">
+  <h2 class="section-title"><span class="num">14</span> Resumen de Referencia Rápida</h2>
+
+  <h3>Punto de Partida</h3>
+  <ul>
+    <li>Todo nuevo usuario comienza con <strong>1.000 puntos de comportamiento</strong> → nivel Confiable</li>
+    <li>La protección de nuevo usuario está activa por <strong>30 días</strong> (o hasta que la puntuación supere 1.050)</li>
+    <li>La puntuación de reputación muestra <strong>"Nuevo"</strong> hasta recibir 3 calificaciones de pares</li>
+  </ul>
+
+  <h3>Rangos de Puntuación de un Vistazo</h3>
+  <table>
+    <thead><tr><th>Rango de Puntuación</th><th>Nivel</th><th>Puede Unirse</th><th>Puede Organizar</th></tr></thead>
+    <tbody>
+      <tr><td>1.200 +</td><td>🥇 De Confianza</td><td>Sí</td><td>Sí</td></tr>
+      <tr><td>1.000 – 1.199</td><td>🥈 Confiable</td><td>Sí</td><td>Sí</td></tr>
+      <tr><td>900 – 999</td><td>🥉 Casual</td><td>Sí</td><td>Sí</td></tr>
+      <tr><td>800 – 899</td><td>⚠️ Marcado</td><td>Sí</td><td>No</td></tr>
+      <tr><td>0 – 799</td><td>🚫 Restringido</td><td>No</td><td>No</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Máximo de Puntos Que Puedes Ganar (Solo Acciones Únicas)</h3>
+  <table>
+    <thead><tr><th>Categoría</th><th>Puntos Únicos Máximos</th></tr></thead>
+    <tbody>
+      <tr><td>Configuración de perfil (foto + biografía + completar)</td><td>+20</td></tr>
+      <tr><td>Primer evento unido</td><td>+20</td></tr>
+      <tr><td>Primer evento organizado</td><td>+25</td></tr>
+      <tr><td>Todas las insignias combinadas</td><td>+400</td></tr>
+      <tr><td><strong>Total máximo único</strong></td><td><strong>+465 pts</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>La Ruta Más Rápida para Alcanzar el Nivel De Confianza (1.200)</h3>
+  <p>Partiendo de 1.000 (nuevo usuario), un usuario necesita <strong>+200 puntos más</strong>. Ruta más rápida:</p>
+  <ol>
+    <li>Completar perfil, añadir foto, escribir biografía → <strong>+20</strong></li>
+    <li>Asistir al primer evento → <strong>+20 + 5 + 10</strong> (bono primer evento + unirse + geofence) = <strong>+35</strong></li>
+    <li>Dejar una reseña → <strong>+5</strong></li>
+    <li>Unirse a 4 eventos más con bono de anticipación → <strong>+8 × 4 = +32</strong></li>
+    <li>Ganar la insignia Primera Vez → <strong>+25</strong></li>
+    <li>Ganar la insignia Madrugador → <strong>+30</strong></li>
+    <li>La brecha restante se llena con inicios de sesión diarios, mensajes de chat y calificaciones recibidas</li>
+  </ol>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div>Un usuario activo y bien comportado puede alcanzar de forma realista el <strong>nivel De Confianza en 2 a 4 semanas</strong> de uso regular.</div>
+  </div>
+</section>
+
+<div class="doc-footer">
+  Documentación Interna de OpenCircle &nbsp;·&nbsp; Sistema de Reputación y Premios v1.1 &nbsp;·&nbsp; Junio 2026
+</div>
+
+</body>
+</html>

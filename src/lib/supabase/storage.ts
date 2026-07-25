@@ -1,27 +1,23 @@
-import{File}  from "expo-file-system";
+import { File } from "expo-file-system";
 import { supabase } from "./client";
 
-export const uploadProfileImage = async (userId: string, imageUri:string) => {
-    try {
-        const fileExtension = imageUri.split('.').pop()||'jpg';
-        const fileName = `${userId}/profile.${fileExtension}`;
-        const file = new File(imageUri);
-        const bytes = await file.bytes();
+export const uploadProfileImage = async (userId: string, imageUri: string) => {
+  const cleanUri = imageUri.split("?")[0];
+  const ext = (cleanUri.split(".").pop() || "jpg").toLowerCase();
+  const mimeType = ext === "jpg" ? "jpeg" : ext;
+  const fileName = `${userId}/profile.${ext}`;
 
-        const { error } = await supabase.storage.from('profiles').upload(fileName, bytes, {
-            contentType: `image/${fileExtension}`,
-            upsert: true
-        });
-        if (error) {
-            throw  error;
-        }
-        const { data: urlData } = supabase.storage.from('profiles').getPublicUrl(fileName);
-       
-        return urlData.publicUrl;} 
+  const bytes = await new File(imageUri).bytes();
 
+  const { error } = await supabase.storage
+    .from("profiles")
+    .upload(fileName, bytes.buffer, {
+      contentType: `image/${mimeType}`,
+      upsert: true,
+    });
 
+  if (error) throw error;
 
-     catch (error) {
-        console.error("Error uploading profile image:", error);
-        throw error;
-}};
+  const { data } = supabase.storage.from("profiles").getPublicUrl(fileName);
+  return data.publicUrl;
+};

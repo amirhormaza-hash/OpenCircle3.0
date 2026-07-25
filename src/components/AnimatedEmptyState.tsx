@@ -34,7 +34,7 @@ export default function AnimatedEmptyState({ icon, title, message }: Props) {
   return (
     <View style={styles.container}>
       <Animated.View style={pulseStyle}>
-        <Ionicons name={icon} size={54} color="#7C3AED" />
+        <Ionicons name={icon} size={54} color="#FF6B00" />
       </Animated.View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
@@ -45,7 +45,8 @@ export default function AnimatedEmptyState({ icon, title, message }: Props) {
 const styles = StyleSheet.create({
   container: {
     marginTop: 50,
-    padding: 24,
+    marginHorizontal: 12,
+    padding: 28,
     borderRadius: 20,
     backgroundColor: '#1A1A24',
     borderWidth: 1,
@@ -54,13 +55,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: 'Nunito_800ExtraBold',
     color: '#F0F0FA',
     marginBottom: 8,
     marginTop: 14,
   },
   message: {
     fontSize: 15,
+    fontFamily: 'Nunito_600SemiBold',
     color: '#7878A0',
     textAlign: 'center',
     lineHeight: 22,
