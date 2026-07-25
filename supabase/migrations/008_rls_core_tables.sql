@@ -145,6 +145,8 @@ CREATE POLICY "attendees read chat messages"
     )
   );
 
+-- Sending closes when the event's 24h window ends — chats live and die
+-- with the event (src/lib/eventLifecycle.ts).
 DROP POLICY IF EXISTS "attendees send messages as themselves" ON chat_messages;
 CREATE POLICY "attendees send messages as themselves"
   ON chat_messages FOR INSERT TO authenticated
@@ -153,6 +155,9 @@ CREATE POLICY "attendees send messages as themselves"
     AND EXISTS (
       SELECT 1 FROM event_chats ec
       JOIN event_attendees ea ON ea.event_id = ec.event_id
-      WHERE ec.id = chat_messages.chat_id AND ea.user_id = auth.uid()
+      JOIN event e ON e.id = ec.event_id
+      WHERE ec.id = chat_messages.chat_id
+        AND ea.user_id = auth.uid()
+        AND now() < e.date_time::timestamptz + INTERVAL '24 hours'
     )
   );

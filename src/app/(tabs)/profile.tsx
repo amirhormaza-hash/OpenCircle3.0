@@ -35,7 +35,9 @@ import ReputationTag from '../../components/ReputationTag';
 import StreakCard from '../../components/StreakCard';
 // Past event row: left color bar + emoji + name/date + hosted/attended pill
 import EventHistoryCard from '../../components/EventHistoryCard';
+import OpenRing from '../../components/OpenRing';
 import { BADGE_DEFINITIONS } from '../../constants/badges';
+import { categoryColor, colors, fonts } from '../../constants/colors';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -48,11 +50,11 @@ const LEVEL_TO_PERCENT: Record<string, number> = {
 
 // ── Trust score pill — color bracket changes by score ───────────────────────
 function TrustScorePill({ score }: { score: number }) {
-  let color = '#7a7a9a';
+  let color = colors.muted;
   let label = 'New';
-  if (score >= 4.5)      { color = '#34d399'; label = 'Excellent'; }
-  else if (score >= 4.0) { color = '#F97316'; label = 'Great'; }
-  else if (score >= 3.0) { color = '#fbbf24'; label = 'Good'; }
+  if (score >= 4.5)      { color = colors.success; label = 'Excellent'; }
+  else if (score >= 4.0) { color = colors.ember;   label = 'Great'; }
+  else if (score >= 3.0) { color = colors.star;    label = 'Good'; }
 
   return (
     <View style={[tpStyles.pill, { borderColor: color + '40', backgroundColor: color + '18' }]}>
@@ -63,7 +65,7 @@ function TrustScorePill({ score }: { score: number }) {
 
 const tpStyles = StyleSheet.create({
   pill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1 },
-  text: { fontSize: 12, fontWeight: '700' },
+  text: { fontSize: 12, fontFamily: fonts.bold },
 });
 
 // ── Muted placeholder shown when a section has no data yet ─────────────────
@@ -84,7 +86,7 @@ const ehStyles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 4,
   },
-  text: { fontSize: 13, color: '#3a3a50', fontStyle: 'italic' },
+  text: { fontSize: 13, fontFamily: fonts.regular, color: '#3a3a50', fontStyle: 'italic' },
 });
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -242,7 +244,7 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <Text style={styles.headerLogo}>OpenCircle</Text>
         </View>
-        <ActivityIndicator size="large" color="#F97316" style={{ marginTop: 80 }} />
+        <ActivityIndicator size="large" color={colors.ember} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
@@ -283,16 +285,19 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F0F13" />
 
       {/* ── Fixed header ────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <Text style={styles.headerLogo}>OpenCircle</Text>
+        <View style={styles.headerBrand}>
+          <OpenRing size={20} bg={colors.bg} />
+          <Text style={styles.headerLogo}>OpenCircle</Text>
+        </View>
         <TouchableOpacity
           style={styles.settingsBtn}
           onPress={() => router.push('/(tabs)/profile-settings')}
         >
-          <Ionicons name="settings-outline" size={22} color="#7a7a9a" />
+          <Ionicons name="settings-outline" size={22} color={colors.muted} />
         </TouchableOpacity>
       </View>
 
@@ -306,8 +311,11 @@ export default function ProfileScreen() {
           <View style={styles.hero}>
             <View style={styles.avatarRow}>
 
-              {/* Avatar: photo if available, otherwise initials */}
+              {/* Avatar inside the open ring — the brand mark, worn */}
               <View style={styles.avatarWrapper}>
+                <View style={StyleSheet.absoluteFill}>
+                  <OpenRing size={92} stroke={4} dot={9} bg={colors.bg} />
+                </View>
                 {user?.profileImage ? (
                   <Image
                     source={{ uri: user.profileImage }}
@@ -319,7 +327,6 @@ export default function ProfileScreen() {
                     <Text style={styles.avatarInitials}>{initials}</Text>
                   </View>
                 )}
-                <View style={styles.onlineDot} />
               </View>
 
               <View style={styles.profileInfo}>
@@ -331,8 +338,8 @@ export default function ProfileScreen() {
                 <View style={styles.pillsRow}>
                   {repScore !== null && repScore !== 'New'
                     ? (
-                      <View style={[tpStyles.pill, { borderColor: '#FBBF2440', backgroundColor: '#FBBF2418' }]}>
-                        <Text style={[tpStyles.text, { color: '#FBBF24' }]}>★ {Number(repScore).toFixed(1)} rep</Text>
+                      <View style={[tpStyles.pill, { borderColor: colors.star + '40', backgroundColor: colors.star + '18' }]}>
+                        <Text style={[tpStyles.text, { color: colors.star }]}>★ {Number(repScore).toFixed(1)} rep</Text>
                       </View>
                     ) : (
                       <TrustScorePill score={profile?.trust_score ?? 0} />
@@ -357,16 +364,19 @@ export default function ProfileScreen() {
 
         {/* ── SECTION 1: Stats row ────────────────────────────────────── */}
         {fadeSection(1, (
-          <View style={styles.statsRow}>
+          <View style={styles.statsCard}>
             {[
               { value: stats.attended, label: 'Attended' },
               { value: stats.hosted,   label: 'Hosted'   },
               { value: stats.vouches,  label: 'Vouches'  },
-            ].map(({ value, label }) => (
-              <View key={label} style={styles.statCard}>
-                <Text style={styles.statValue}>{value}</Text>
-                <Text style={styles.statLabel}>{label}</Text>
-              </View>
+            ].map(({ value, label }, i) => (
+              <React.Fragment key={label}>
+                {i > 0 && <View style={styles.statDivider} />}
+                <View style={styles.statCell}>
+                  <Text style={styles.statValue}>{value}</Text>
+                  <Text style={styles.statLabel}>{label}</Text>
+                </View>
+              </React.Fragment>
             ))}
           </View>
         ))}
@@ -374,7 +384,7 @@ export default function ProfileScreen() {
         {/* ── SECTION 2: Streak ───────────────────────────────────────── */}
         {fadeSection(2, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>🔥 Current Streak</Text>
+            <Text style={styles.sectionLabel}>Current streak</Text>
             <StreakCard
               currentStreak={streak?.current_streak ?? 0}
               longestStreak={streak?.longest_streak ?? 0}
@@ -385,7 +395,7 @@ export default function ProfileScreen() {
         {/* ── SECTION 3: Badges grid (all 8 always shown) ─────────────── */}
         {fadeSection(3, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>🏅 Badges</Text>
+            <Text style={styles.sectionLabel}>Badges</Text>
             <View style={styles.badgeGrid}>
               {BADGE_DEFINITIONS.map(badge => {
                 const earned  = earnedKeys.has(badge.key);
@@ -408,7 +418,7 @@ export default function ProfileScreen() {
         {/* ── SECTION 4: Reputation tags ──────────────────────────────── */}
         {fadeSection(4, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>👍 Reputation</Text>
+            <Text style={styles.sectionLabel}>Reputation</Text>
             {hasReputation ? (
               <View style={styles.tagsWrap}>
                 {Object.entries(reputationTags).map(([tag, count]) => (
@@ -427,7 +437,7 @@ export default function ProfileScreen() {
         {/* ── SECTION 5: Skill levels with animated bars ──────────────── */}
         {fadeSection(5, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>📊 Skill Levels</Text>
+            <Text style={styles.sectionLabel}>Skill levels</Text>
             {hasSkills ? (
               Object.entries(skillLevels).map(([cat, level]) => {
                 if (!barAnims.current[cat]) {
@@ -441,7 +451,9 @@ export default function ProfileScreen() {
                   <View key={cat} style={styles.skillRow}>
                     <Text style={styles.skillCat}>{cat}</Text>
                     <View style={styles.barTrack}>
-                      <Animated.View style={[styles.barFill, { width: barWidth }]} />
+                      <Animated.View
+                        style={[styles.barFill, { width: barWidth, backgroundColor: categoryColor(cat) }]}
+                      />
                     </View>
                     <Text style={styles.skillLevel}>{level}</Text>
                   </View>
@@ -459,7 +471,7 @@ export default function ProfileScreen() {
         {/* ── SECTION 6: Event history ────────────────────────────────── */}
         {fadeSection(6, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>📅 Event History</Text>
+            <Text style={styles.sectionLabel}>Event history</Text>
             {hasHistory ? (
               eventHistory.map(ev => <EventHistoryCard key={ev.id} event={ev} />)
             ) : (
@@ -477,24 +489,30 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0f' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  headerLogo: { fontSize: 20, fontWeight: '800', color: '#F97316' },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  headerLogo: {
+    fontSize: 22,
+    fontFamily: fonts.display,
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
   settingsBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#13131c',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: colors.line,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -502,41 +520,36 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingBottom: 40 },
 
   // Hero
-  hero: { marginBottom: 20 },
+  hero: { marginBottom: 20, marginTop: 8 },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 12 },
-  avatarWrapper: { position: 'relative' },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#F97316',
-  },
-  avatarFallback: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F97316',
-    borderWidth: 3,
-    borderColor: '#F97316',
+  avatarWrapper: {
+    width: 92,
+    height: 92,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarInitials: { fontSize: 28, fontWeight: '800', color: '#fff' },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#34d399',
-    borderWidth: 2,
-    borderColor: '#0a0a0f',
+  avatarImage: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
   },
+  avatarFallback: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: colors.ember,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitials: { fontSize: 28, fontFamily: fonts.heading, color: '#fff' },
   profileInfo: { flex: 1, gap: 4 },
-  displayName: { fontSize: 22, fontWeight: '800', color: '#f0f0f5' },
-  handle: { fontSize: 13, color: '#7a7a9a' },
+  displayName: {
+    fontSize: 24,
+    fontFamily: fonts.display,
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  handle: { fontSize: 13, fontFamily: fonts.body, color: colors.muted },
   pillsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 },
   verifiedPill: {
     flexDirection: 'row',
@@ -545,31 +558,39 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: 'rgba(52,211,153,0.12)',
+    backgroundColor: 'rgba(34,197,94,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(52,211,153,0.3)',
+    borderColor: 'rgba(34,197,94,0.3)',
   },
-  verifiedText: { fontSize: 12, fontWeight: '700', color: '#34d399' },
-  bio: { fontSize: 14, color: '#7a7a9a', lineHeight: 20 },
-  bioHint: { fontSize: 13, color: '#3a3a50', fontStyle: 'italic' },
+  verifiedText: { fontSize: 12, fontFamily: fonts.bold, color: colors.success },
+  bio: { fontSize: 14, fontFamily: fonts.body, color: colors.muted, lineHeight: 20 },
+  bioHint: { fontSize: 13, fontFamily: fonts.regular, color: '#3a3a50', fontStyle: 'italic' },
 
-  // Stats
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#13131c',
-    borderRadius: 14,
+  // Stats — one card, three cells split by hairlines
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: colors.line,
     paddingVertical: 16,
-    alignItems: 'center',
+    marginBottom: 24,
   },
-  statValue: { fontSize: 26, fontWeight: '800', color: '#F97316' },
-  statLabel: { fontSize: 12, color: '#7a7a9a', fontWeight: '600', marginTop: 2 },
+  statCell: { flex: 1, alignItems: 'center' },
+  statDivider: { width: 1, backgroundColor: colors.line, marginVertical: 4 },
+  statValue: { fontSize: 26, fontFamily: fonts.display, color: colors.ember },
+  statLabel: { fontSize: 12, fontFamily: fonts.body, color: colors.muted, marginTop: 2 },
 
-  // Section wrapper
+  // Section wrapper — quiet uppercase eyebrows, same voice as the filter sheet
   section: { marginBottom: 28 },
-  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#f0f0f5', marginBottom: 12 },
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: colors.ember,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
 
   // Badges
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -578,9 +599,9 @@ const styles = StyleSheet.create({
   // Reputation
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
 
-  // Skills
+  // Skills — bar color comes from the event category (see categoryColor)
   skillRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  skillCat: { width: 100, fontSize: 13, fontWeight: '600', color: '#f0f0f5' },
+  skillCat: { width: 100, fontSize: 13, fontFamily: fonts.body, color: colors.text },
   barTrack: {
     flex: 1,
     height: 8,
@@ -588,20 +609,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
   },
-  barFill: { height: '100%', borderRadius: 4, backgroundColor: '#F97316' },
-  skillLevel: { width: 90, fontSize: 11, fontWeight: '600', color: '#7a7a9a', textAlign: 'right' },
+  barFill: { height: '100%', borderRadius: 4 },
+  skillLevel: { width: 90, fontSize: 11, fontFamily: fonts.bold, color: colors.muted, textAlign: 'right' },
 
   // Error state
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorText: { fontSize: 15, color: '#7a7a9a', fontWeight: '600' },
+  errorText: { fontSize: 15, fontFamily: fonts.body, color: colors.muted },
   retryBtn: {
     marginTop: 4,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#13131c',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: colors.line,
   },
-  retryText: { fontSize: 14, fontWeight: '700', color: '#F97316' },
+  retryText: { fontSize: 14, fontFamily: fonts.bold, color: colors.ember },
 });

@@ -22,6 +22,8 @@ import BadgeItem from '../../components/BadgeItem';
 import ReputationTag from '../../components/ReputationTag';
 import StreakCard from '../../components/StreakCard';
 import EventHistoryCard from '../../components/EventHistoryCard';
+import OpenRing from '../../components/OpenRing';
+import { categoryColor, colors, fonts } from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
 import {
   fetchRateableEvent,
@@ -46,9 +48,9 @@ const LEVEL_TO_PERCENT: Record<string, number> = {
 function TrustScorePill({ score }: { score: number }) {
   let color = '#7a7a9a';
   let label = 'New';
-  if (score >= 4.5)      { color = '#34d399'; label = 'Excellent'; }
-  else if (score >= 4.0) { color = '#F97316'; label = 'Great'; }
-  else if (score >= 3.0) { color = '#fbbf24'; label = 'Good'; }
+  if (score >= 4.5)      { color = '#22C55E'; label = 'Excellent'; }
+  else if (score >= 4.0) { color = '#FF6B00'; label = 'Great'; }
+  else if (score >= 3.0) { color = '#FFB800'; label = 'Good'; }
   return (
     <View style={[tpStyles.pill, { borderColor: color + '40', backgroundColor: color + '18' }]}>
       <Text style={[tpStyles.text, { color }]}>★ {score.toFixed(1)} · {label}</Text>
@@ -248,13 +250,13 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <StatusBar barStyle="light-content" backgroundColor="#0F0F13" />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="#f0f0f5" />
           </TouchableOpacity>
         </View>
-        <ActivityIndicator size="large" color="#F97316" style={{ marginTop: 80 }} />
+        <ActivityIndicator size="large" color="#FF6B00" style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
@@ -262,7 +264,7 @@ export default function UserProfileScreen() {
   if (notFound || !profile) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <StatusBar barStyle="light-content" backgroundColor="#0F0F13" />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="#f0f0f5" />
@@ -285,7 +287,7 @@ export default function UserProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F0F13" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -303,6 +305,9 @@ export default function UserProfileScreen() {
           <View style={styles.hero}>
             <View style={styles.avatarRow}>
               <View style={styles.avatarWrapper}>
+                <View style={StyleSheet.absoluteFill}>
+                  <OpenRing size={92} stroke={4} dot={9} bg={colors.bg} />
+                </View>
                 {profile.profile_image_url ? (
                   <Image source={{ uri: profile.profile_image_url }} style={styles.avatarImage} contentFit="cover" />
                 ) : (
@@ -319,8 +324,8 @@ export default function UserProfileScreen() {
                 <View style={styles.pillsRow}>
                   {repScore !== null && repScore !== 'New'
                     ? (
-                      <View style={[tpStyles.pill, { borderColor: '#FBBF2440', backgroundColor: '#FBBF2418' }]}>
-                        <Text style={[tpStyles.text, { color: '#FBBF24' }]}>★ {Number(repScore).toFixed(1)} rep</Text>
+                      <View style={[tpStyles.pill, { borderColor: '#FFB80040', backgroundColor: '#FFB80018' }]}>
+                        <Text style={[tpStyles.text, { color: '#FFB800' }]}>★ {Number(repScore).toFixed(1)} rep</Text>
                       </View>
                     ) : (
                       <TrustScorePill score={profile.trust_score ?? 0} />
@@ -328,7 +333,7 @@ export default function UserProfileScreen() {
                   }
                   {profile.is_verified && (
                     <View style={styles.verifiedPill}>
-                      <Ionicons name="checkmark-circle" size={13} color="#34d399" />
+                      <Ionicons name="checkmark-circle" size={13} color="#22C55E" />
                       <Text style={styles.verifiedText}>Verified</Text>
                     </View>
                   )}
@@ -354,7 +359,7 @@ export default function UserProfileScreen() {
                 </TouchableOpacity>
                 {rateableEvent && (
                   <TouchableOpacity style={styles.rateButton} onPress={() => setShowModal(true)} activeOpacity={0.85}>
-                    <Ionicons name="star-outline" size={16} color="#F97316" />
+                    <Ionicons name="star-outline" size={16} color="#FF6B00" />
                     <Text style={styles.rateButtonText}>Rate</Text>
                   </TouchableOpacity>
                 )}
@@ -382,7 +387,7 @@ export default function UserProfileScreen() {
         {/* SECTION 2: Streak */}
         {fadeSection(2, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>🔥 Current Streak</Text>
+            <Text style={styles.sectionLabel}>Current streak</Text>
             <StreakCard
               currentStreak={streak?.current_streak ?? 0}
               longestStreak={streak?.longest_streak ?? 0}
@@ -393,7 +398,7 @@ export default function UserProfileScreen() {
         {/* SECTION 3: Badges */}
         {fadeSection(3, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>🏅 Badges</Text>
+            <Text style={styles.sectionLabel}>Badges</Text>
             <View style={styles.badgeGrid}>
               {BADGE_DEFINITIONS.map(badge => (
                 <View key={badge.key} style={styles.badgeCell}>
@@ -411,7 +416,7 @@ export default function UserProfileScreen() {
         {/* SECTION 4: Reputation */}
         {fadeSection(4, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>👍 Reputation</Text>
+            <Text style={styles.sectionLabel}>Reputation</Text>
             {hasReputation ? (
               <View style={styles.tagsWrap}>
                 {Object.entries(reputationTags).map(([tag, count]) => (
@@ -427,7 +432,7 @@ export default function UserProfileScreen() {
         {/* SECTION 5: Skill Levels */}
         {fadeSection(5, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>📊 Skill Levels</Text>
+            <Text style={styles.sectionLabel}>Skill levels</Text>
             {hasSkills ? (
               Object.entries(skillLevels).map(([cat, level]) => {
                 if (!barAnims.current[cat]) {
@@ -440,7 +445,9 @@ export default function UserProfileScreen() {
                   <View key={cat} style={styles.skillRow}>
                     <Text style={styles.skillCat}>{cat}</Text>
                     <View style={styles.barTrack}>
-                      <Animated.View style={[styles.barFill, { width: barWidth }]} />
+                      <Animated.View
+                        style={[styles.barFill, { width: barWidth, backgroundColor: categoryColor(cat) }]}
+                      />
                     </View>
                     <Text style={styles.skillLevel}>{level}</Text>
                   </View>
@@ -455,7 +462,7 @@ export default function UserProfileScreen() {
         {/* SECTION 6: Event History */}
         {fadeSection(6, (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>📅 Event History</Text>
+            <Text style={styles.sectionLabel}>Event history</Text>
             {hasHistory ? (
               eventHistory.map(ev => <EventHistoryCard key={ev.id} event={ev} />)
             ) : (
@@ -481,7 +488,7 @@ export default function UserProfileScreen() {
                   <Ionicons
                     name={n <= selectedStars ? 'star' : 'star-outline'}
                     size={36}
-                    color={n <= selectedStars ? '#FBBF24' : '#3D3D5C'}
+                    color={n <= selectedStars ? '#FFB800' : '#2E2E40'}
                   />
                 </TouchableOpacity>
               ))}
@@ -531,7 +538,7 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0f' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: 'row',
@@ -542,66 +549,77 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#13131c',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: colors.card,
+    borderWidth: 1, borderColor: colors.line,
     justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#f0f0f5' },
+  headerTitle: { fontSize: 17, fontFamily: fonts.heading, color: colors.text },
 
   scroll: { paddingHorizontal: 16, paddingBottom: 40 },
 
-  // Hero
+  // Hero — avatar sits inside the open ring
   hero: { marginBottom: 20 },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 12 },
-  avatarWrapper: { position: 'relative' },
-  avatarImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: '#F97316' },
+  avatarWrapper: { width: 92, height: 92, justifyContent: 'center', alignItems: 'center' },
+  avatarImage: { width: 78, height: 78, borderRadius: 39 },
   avatarFallback: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#F97316', borderWidth: 3, borderColor: '#F97316',
+    width: 78, height: 78, borderRadius: 39,
+    backgroundColor: colors.ember,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarInitials: { fontSize: 28, fontWeight: '800', color: '#fff' },
+  avatarInitials: { fontSize: 28, fontFamily: fonts.heading, color: '#fff' },
   profileInfo: { flex: 1, gap: 4 },
-  displayName: { fontSize: 22, fontWeight: '800', color: '#f0f0f5' },
-  handle: { fontSize: 13, color: '#7a7a9a' },
+  displayName: { fontSize: 24, fontFamily: fonts.display, color: colors.text, letterSpacing: -0.3 },
+  handle: { fontSize: 13, fontFamily: fonts.body, color: colors.muted },
   pillsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 },
   verifiedPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: 'rgba(52,211,153,0.12)', borderWidth: 1, borderColor: 'rgba(52,211,153,0.3)',
+    backgroundColor: 'rgba(34,197,94,0.12)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)',
   },
-  verifiedText: { fontSize: 12, fontWeight: '700', color: '#34d399' },
-  bio: { fontSize: 14, color: '#7a7a9a', lineHeight: 20, marginBottom: 12 },
-  bioHint: { fontSize: 13, color: '#3a3a50', fontStyle: 'italic', marginBottom: 12 },
+  verifiedText: { fontSize: 12, fontFamily: fonts.bold, color: colors.success },
+  bio: { fontSize: 14, fontFamily: fonts.body, color: colors.muted, lineHeight: 20, marginBottom: 12 },
+  bioHint: { fontSize: 13, fontFamily: fonts.regular, color: '#3a3a50', fontStyle: 'italic', marginBottom: 12 },
 
   // Action buttons
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   dmButton: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#13131c', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.card, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: 14, paddingVertical: 13,
   },
-  dmButtonText: { fontSize: 15, fontWeight: '700', color: '#f0f0f5' },
+  dmButtonText: { fontSize: 15, fontFamily: fonts.bold, color: colors.text },
   rateButton: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#13131c', borderWidth: 1.5, borderColor: '#F97316',
+    backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.ember,
     borderRadius: 14, paddingVertical: 13,
   },
-  rateButtonText: { fontSize: 15, fontWeight: '700', color: '#F97316' },
+  rateButtonText: { fontSize: 15, fontFamily: fonts.bold, color: colors.ember },
 
-  // Stats
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  statCard: {
-    flex: 1, backgroundColor: '#13131c', borderRadius: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    paddingVertical: 16, alignItems: 'center',
+  // Stats — one card, three cells split by hairlines
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: 16,
+    marginBottom: 24,
   },
-  statValue: { fontSize: 26, fontWeight: '800', color: '#F97316' },
-  statLabel: { fontSize: 12, color: '#7a7a9a', fontWeight: '600', marginTop: 2 },
+  statCard: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 26, fontFamily: fonts.display, color: colors.ember },
+  statLabel: { fontSize: 12, fontFamily: fonts.body, color: colors.muted, marginTop: 2 },
 
-  // Section
+  // Section — quiet uppercase eyebrows
   section: { marginBottom: 28 },
-  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#f0f0f5', marginBottom: 12 },
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: colors.ember,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
 
   // Badges
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -610,39 +628,42 @@ const styles = StyleSheet.create({
   // Reputation
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
 
-  // Skills
+  // Skills — bar color comes from the event category
   skillRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  skillCat: { width: 100, fontSize: 13, fontWeight: '600', color: '#f0f0f5' },
+  skillCat: { width: 100, fontSize: 13, fontFamily: fonts.body, color: colors.text },
   barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 4, backgroundColor: '#F97316' },
-  skillLevel: { width: 90, fontSize: 11, fontWeight: '600', color: '#7a7a9a', textAlign: 'right' },
+  barFill: { height: '100%', borderRadius: 4 },
+  skillLevel: { width: 90, fontSize: 11, fontFamily: fonts.bold, color: colors.muted, textAlign: 'right' },
 
   // Error
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorText: { fontSize: 15, color: '#7a7a9a', fontWeight: '600' },
+  errorText: { fontSize: 15, fontFamily: fonts.body, color: colors.muted },
 
   // Rating modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: '#16161E', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: 24, paddingBottom: 36, paddingTop: 12,
   },
-  modalHandle: { width: 40, height: 4, backgroundColor: '#3D3D5C', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#f0f0f5', textAlign: 'center', marginBottom: 4 },
-  modalSub: { fontSize: 13, color: '#7a7a9a', textAlign: 'center', marginBottom: 20 },
+  modalHandle: { width: 40, height: 4, backgroundColor: colors.line, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontFamily: fonts.heading, color: colors.text, textAlign: 'center', marginBottom: 4 },
+  modalSub: { fontSize: 13, fontFamily: fonts.body, color: colors.muted, textAlign: 'center', marginBottom: 20 },
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 6 },
   starBtn: { padding: 4 },
-  starLabel: { fontSize: 14, fontWeight: '600', color: '#FBBF24', textAlign: 'center', marginBottom: 20 },
-  tagsHeading: { fontSize: 13, fontWeight: '700', color: '#7a7a9a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  starLabel: { fontSize: 14, fontFamily: fonts.bold, color: colors.star, textAlign: 'center', marginBottom: 20 },
+  tagsHeading: {
+    fontSize: 12, fontFamily: fonts.bold, color: colors.ember,
+    textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12,
+  },
   tagsWrapModal: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  tagChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#3D3D5C', backgroundColor: '#1E1E28' },
-  tagChipActive: { borderColor: '#F97316', backgroundColor: '#2A1A0A' },
-  tagChipText: { fontSize: 13, fontWeight: '600', color: '#7a7a9a' },
-  tagChipTextActive: { color: '#F97316' },
+  tagChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: colors.line, backgroundColor: colors.cardAlt },
+  tagChipActive: { borderColor: colors.ember, backgroundColor: 'rgba(255,107,0,0.12)' },
+  tagChipText: { fontSize: 13, fontFamily: fonts.bold, color: colors.muted },
+  tagChipTextActive: { color: colors.ember },
   modalActions: { flexDirection: 'row', gap: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#1E1E28', alignItems: 'center' },
-  cancelBtnText: { fontSize: 15, fontWeight: '700', color: '#7a7a9a' },
-  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#F97316', alignItems: 'center' },
+  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.cardAlt, alignItems: 'center' },
+  cancelBtnText: { fontSize: 15, fontFamily: fonts.bold, color: colors.muted },
+  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.ember, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.45 },
-  submitBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  submitBtnText: { fontSize: 15, fontFamily: fonts.heading, color: '#fff' },
 });

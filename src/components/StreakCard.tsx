@@ -2,6 +2,7 @@
 // Animated streak display: pulsing fire emoji + week dots + longest streak
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
+import { colors, fonts } from '../constants/colors';
 
 interface Props {
   currentStreak: number;
@@ -48,28 +49,28 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#13131c',
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.2)',
+    borderColor: 'rgba(255,184,0,0.2)',
     padding: 20,
     gap: 20,
   },
   fire: { fontSize: 48 },
   right: { flex: 1 },
-  number: { fontSize: 40, fontWeight: '800', color: '#fbbf24', lineHeight: 44 },
-  subtitle: { fontSize: 14, color: '#7a7a9a', marginBottom: 12 },
+  number: { fontSize: 40, fontFamily: fonts.display, color: colors.star, lineHeight: 46 },
+  subtitle: { fontSize: 14, fontFamily: fonts.body, color: colors.muted, marginBottom: 12 },
   dotsRow: { flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
   dot: {
     width: 30,
     height: 30,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.3)',
+    borderColor: 'rgba(255,184,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dotFilled: { backgroundColor: '#fbbf24', borderColor: '#fbbf24' },
-  dotLabel: { fontSize: 9, fontWeight: '700', color: '#0a0a0f' },
-  longest: { fontSize: 12, color: '#7a7a9a' },
+  dotFilled: { backgroundColor: colors.star, borderColor: colors.star },
+  dotLabel: { fontSize: 9, fontFamily: fonts.bold, color: colors.bg },
+  longest: { fontSize: 12, fontFamily: fonts.body, color: colors.muted },
 });

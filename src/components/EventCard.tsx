@@ -363,7 +363,73 @@ interface Props {
   distanceLabel?: string;
   swipeable?: boolean;
   slideDirection?: 'left' | 'right';
+  /** Event is inside its 24h post-start rating window — show stars instead of Join/Leave. */
+  ratable?: boolean;
+  /** Stars the current user already gave this event, if any. */
+  myStars?: number | null;
+  /** Return true when the rating was saved — the card then animates away and calls onLeave. */
+  onRate?: (stars: 1 | 2 | 3 | 4 | 5) => boolean | void | Promise<boolean | void>;
 }
+
+function RateEventRow({
+  myStars,
+  onRate,
+}: {
+  myStars: number | null;
+  onRate?: (stars: 1 | 2 | 3 | 4 | 5) => void | Promise<void>;
+}) {
+  const [pending, setPending] = useState<number | null>(null);
+  const rated = myStars != null;
+  const shown = myStars ?? pending ?? 0;
+
+  return (
+    <View style={rateStyles.wrap}>
+      <Text style={rateStyles.label}>{rated ? 'Thanks for rating!' : 'How was it?'}</Text>
+      <View style={rateStyles.starRow}>
+        {([1, 2, 3, 4, 5] as const).map((s) => (
+          <TouchableOpacity
+            key={s}
+            disabled={rated || pending != null || !onRate}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setPending(s);
+              onRate?.(s);
+            }}
+          >
+            <Ionicons
+              name={s <= shown ? 'star' : 'star-outline'}
+              size={30}
+              color={s <= shown ? '#FFB800' : 'rgba(255,255,255,0.45)'}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const rateStyles = StyleSheet.create({
+  wrap: {
+    marginTop: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(10,10,16,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    gap: 6,
+  },
+  label: {
+    fontSize: 13,
+    fontFamily: fonts.bold,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  starRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+});
 
 function formatEventDate(value: string): string {
   const d = new Date(value);
@@ -379,6 +445,7 @@ function formatEventDate(value: string): string {
 export default function EventCard({
   event, onPress, onDelete, onJoin, onLeave, onEdit, onSkip, onOwnerPress,
   distanceLabel, swipeable = false, slideDirection = 'right',
+  ratable = false, myStars = null, onRate,
 }: Props) {
   const [isJoined, setIsJoined] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -559,6 +626,15 @@ export default function EventCard({
   const userImage = event.first_image_url && !userImageFailed ? { uri: event.first_image_url } : null;
   const categoryImage = getCategoryImage(event.category);
 
+  // After a confirmed rating, pause briefly so the stars register,
+  // then fly the card off the list — its job is done.
+  async function handleRateSubmit(stars: 1 | 2 | 3 | 4 | 5) {
+    const saved = await onRate?.(stars);
+    if (saved === true) {
+      setTimeout(() => animateSendToList(() => onLeave?.()), 650);
+    }
+  }
+
   function renderCategoryChip(absolute: boolean) {
     if (!event.category) return null;
     const c = categoryColor(event.category);
@@ -585,7 +661,7 @@ export default function EventCard({
     if (!event.owner_username) return null;
     const canNavigate = !!onOwnerPress && !!event.owner_profile_id && !isOwner;
     const color = light ? 'rgba(255,255,255,0.7)' : '#7878A0';
-    const usernameColor = canNavigate ? (light ? '#E0D4FF' : '#A78BFA') : color;
+    const usernameColor = canNavigate ? (light ? '#FFC499' : '#FF8A3D') : color;
     return (
       <TouchableOpacity
         style={styles.ownerRow}
@@ -623,6 +699,9 @@ export default function EventCard({
           </TouchableOpacity>
         </View>
       );
+    }
+    if (ratable) {
+      return <RateEventRow myStars={myStars} onRate={onRate ? handleRateSubmit : undefined} />;
     }
     return (
       <BalloonJoinButton isJoined={isJoined} loading={loading} onPress={handleJoin} />
@@ -813,7 +892,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButton: { backgroundColor: '#EF4444' },
-  editButton: { backgroundColor: '#7C3AED' },
+  editButton: { backgroundColor: '#FF6B00' },
   ownerButtonRow: {
     flexDirection: 'row',
     gap: 8,

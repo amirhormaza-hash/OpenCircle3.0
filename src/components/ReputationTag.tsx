@@ -2,17 +2,18 @@
 // Colored pill showing a reputation tag with icon and count
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { fonts } from '../constants/colors';
 
 type TagConfig = { icon: string; color: string; bg: string };
 
 const TAG_CONFIG: Record<string, TagConfig> = {
-  'Friendly':     { icon: '😊', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
-  'Punctual':     { icon: '⏰', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-  'Great Energy': { icon: '⚡', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
-  'Skilled':      { icon: '🏆', color: '#F97316', bg: 'rgba(249,115,22,0.12)' },
+  'Friendly':     { icon: '😊', color: '#45D483', bg: 'rgba(69,212,131,0.12)' },
+  'Punctual':     { icon: '⏰', color: '#4FA8FF', bg: 'rgba(79,168,255,0.12)' },
+  'Great Energy': { icon: '⚡', color: '#FFB800', bg: 'rgba(255,184,0,0.12)' },
+  'Skilled':      { icon: '🏆', color: '#FF6B00', bg: 'rgba(255,107,0,0.12)' },
 };
 
-const DEFAULT_CONFIG: TagConfig = { icon: '👍', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' };
+const DEFAULT_CONFIG: TagConfig = { icon: '👍', color: '#C36BFF', bg: 'rgba(195,107,255,0.12)' };
 
 interface Props {
   tag: string;
@@ -46,7 +47,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   icon: { fontSize: 14 },
-  label: { fontSize: 13, fontWeight: '600' },
+  label: { fontSize: 13, fontFamily: fonts.bold },
   countBadge: {
     borderRadius: 999,
     paddingHorizontal: 7,
@@ -54,5 +55,5 @@ const styles = StyleSheet.create({
     minWidth: 22,
     alignItems: 'center',
   },
-  countText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  countText: { color: '#fff', fontSize: 11, fontFamily: fonts.bold },
 });

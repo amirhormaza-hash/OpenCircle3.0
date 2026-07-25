@@ -12,7 +12,7 @@ type Props = {
   onPress?: () => void;
 };
 
-export default function SettingRow({ icon, label, iconColor = '#7C3AED', onPress }: Props) {
+export default function SettingRow({ icon, label, iconColor = '#FF6B00', onPress }: Props) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
       <View style={[styles.iconBox, { backgroundColor: `${iconColor}22` }]}>

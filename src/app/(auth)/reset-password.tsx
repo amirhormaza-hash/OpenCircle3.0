@@ -227,13 +227,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: "Nunito_800ExtraBold",
     color: "#F0F0FA",
     textAlign: "center",
     marginBottom: 10,
   },
   body: {
     fontSize: 14,
+    fontFamily: "Nunito_600SemiBold",
     color: "#7878A0",
     textAlign: "center",
     lineHeight: 22,
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
   },
   strengthLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "Nunito_700Bold",
     minWidth: 44,
     textAlign: "right",
   },
@@ -292,6 +293,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Nunito_800ExtraBold",
+    letterSpacing: 0.3,
   },
 });

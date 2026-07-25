@@ -1,5 +1,5 @@
 import { supabase } from './supabase/client';
-import { calculateUserRating } from './ratingSystem';
+import { calculateUserRating, calculateEventRating } from './ratingSystem';
 import type { StarCounts } from './ratingSystem';
 
 // ── Existing helpers (unchanged) ─────────────────────────────────────────────
@@ -90,6 +90,31 @@ export async function fetchEventHistory(userId: string) {
     map.set(e.id as string, { ...e, isHosted: true });
   });
 
+  // Attach each event's aggregate star rating (same formula as the feed)
+  const historyIds = [...map.keys()];
+  if (historyIds.length > 0) {
+    const [{ data: ratingRows }, { data: attendeeCounts }] = await Promise.all([
+      supabase.from('event_ratings').select('event_id, stars').in('event_id', historyIds),
+      supabase.from('event_attendees').select('event_id').in('event_id', historyIds),
+    ]);
+
+    const countByEvent: Record<string, number> = {};
+    (attendeeCounts ?? []).forEach((r: { event_id: string }) => {
+      countByEvent[r.event_id] = (countByEvent[r.event_id] || 0) + 1;
+    });
+
+    const starsByEvent: Record<string, StarCounts> = {};
+    (ratingRows ?? []).forEach((r: { event_id: string; stars: number }) => {
+      if (!starsByEvent[r.event_id]) starsByEvent[r.event_id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      if (r.stars >= 1 && r.stars <= 5) starsByEvent[r.event_id][r.stars as keyof StarCounts]++;
+    });
+
+    map.forEach((event, id) => {
+      const starCounts = starsByEvent[id] ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      event.rating = calculateEventRating(countByEvent[id] ?? 0, starCounts);
+    });
+  }
+
   return [...map.values()].sort(
     (a, b) => new Date(b.date_time as string).getTime() - new Date(a.date_time as string).getTime()
   );
@@ -157,18 +182,20 @@ export async function fetchEventRatingData(eventId: string): Promise<{
 }
 
 /**
- * Submit a star rating for an event.  Only callable during the 48-hour
- * review window after the event ends.  Enforced server-side by RLS policy.
+ * Submit a star rating for an event.  Only callable during the 24-hour
+ * window after the event starts (while the event is still visible in the
+ * app — see src/lib/eventLifecycle.ts).  Enforced server-side by the RLS
+ * policy in migration 007.
  */
 export async function submitEventRating(
   eventId: string,
   raterId: string,
   stars:   1 | 2 | 3 | 4 | 5,
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; code: string | null }> {
   const { error } = await supabase
     .from('event_ratings')
     .insert({ event_id: eventId, rater_id: raterId, stars });
-  return { error: error?.message ?? null };
+  return { error: error?.message ?? null, code: error?.code ?? null };
 }
 
 // ── New: User Reputation helpers ─────────────────────────────────────────────

@@ -22,6 +22,9 @@ import AnimatedEmptyState from '../../components/AnimatedEmptyState';
 import EventDetailsModal, { actionButtonStyles } from '../../components/EventDetailsModal';
 import { supabase } from '../../lib/supabase/client';
 import { calculateEventRating } from '../../lib/ratingSystem';
+import { isEventExpired, isInRatingWindow } from '../../lib/eventLifecycle';
+import { submitEventRating } from '../../lib/profileQueries';
+import Toast from 'react-native-toast-message';
 
 type EventItem = {
   id: string;
@@ -50,6 +53,7 @@ export default function MyList() {
   const [viewMode, setViewMode] = useState<'all' | 'created' | 'joined'>('all');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [myStarsByEvent, setMyStarsByEvent] = useState<Record<string, number>>({});
   const { setMyListBadge } = useBadge();
 
   function handlePressEvent(event: EventItem) {
@@ -160,7 +164,7 @@ export default function MyList() {
         ? supabase.from('profiles').select('id, username').in('id', ownerIds)
         : Promise.resolve({ data: [] }),
       joinedIds.length > 0
-        ? supabase.from('event_ratings').select('event_id, stars').in('event_id', joinedIds)
+        ? supabase.from('event_ratings').select('event_id, stars, rater_id').in('event_id', joinedIds)
         : Promise.resolve({ data: [] }),
     ]);
 
@@ -174,12 +178,19 @@ export default function MyList() {
 
     type StarMap = { 1: number; 2: number; 3: number; 4: number; 5: number };
     const starsByEvent: Record<string, StarMap> = {};
+    const mineByEvent: Record<string, number> = {};
     (ratingsResult.data || []).forEach((r: any) => {
       if (!starsByEvent[r.event_id]) starsByEvent[r.event_id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       if (r.stars >= 1 && r.stars <= 5) starsByEvent[r.event_id][r.stars as 1|2|3|4|5]++;
+      if (r.rater_id === user.id) mineByEvent[r.event_id] = r.stars;
     });
+    setMyStarsByEvent(mineByEvent);
 
-    const formattedEvents: EventItem[] = (data || []).map((item: any) => {
+    // Hide events past their 24h window, and joined events the user has
+    // already rated — once rated, their card's job is done.
+    const formattedEvents: EventItem[] = (data || [])
+      .filter((item: any) => !isEventExpired(item.date_time) && mineByEvent[item.id] == null)
+      .map((item: any) => {
       const sortedImages = [...(item.event_images || [])].sort(
         (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
       );
@@ -210,6 +221,32 @@ export default function MyList() {
     setRefreshing(true);
     await fetchMyEvents();
     setRefreshing(false);
+  }
+
+  // Returns true when the rating is saved (or already existed) — the card
+  // uses that to animate itself off the list.
+  async function handleRate(eventId: string, stars: 1 | 2 | 3 | 4 | 5): Promise<boolean> {
+    if (!currentUserId) return false;
+    const { error, code } = await submitEventRating(eventId, currentUserId, stars);
+    if (error) {
+      console.error('submitEventRating failed:', code, error);
+      if (code === '23505') {
+        // Unique violation — a rating from this user already exists
+        setMyStarsByEvent((prev) => ({ ...prev, [eventId]: stars }));
+        Toast.show({ type: 'info', text1: 'Already rated', text2: 'You already rated this event.', position: 'bottom' });
+        return true;
+      }
+      const friendly =
+        code === '42501'
+          ? 'Rating is only open to attendees during the 24 hours after the event starts.'
+          : `Could not submit your rating.\n\n${error}`;
+      Alert.alert('Rating not submitted', friendly);
+      fetchMyEvents();
+      return false;
+    }
+    setMyStarsByEvent((prev) => ({ ...prev, [eventId]: stars }));
+    Toast.show({ type: 'success', text1: 'Rating submitted', text2: 'Thanks for the feedback!', position: 'bottom' });
+    return true;
   }
 
   useFocusEffect(
@@ -248,6 +285,9 @@ export default function MyList() {
             onEdit={handleEditEvent}
             onOwnerPress={(userId) => router.push({ pathname: '/(tabs)/user-profile', params: { userId } })}
             slideDirection="left"
+            ratable={item.profile_id !== currentUserId && isInRatingWindow(item.date_time)}
+            myStars={myStarsByEvent[item.id] ?? null}
+            onRate={(stars) => handleRate(item.id, stars)}
           />
         )}
         showsVerticalScrollIndicator={false}
@@ -353,7 +393,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerTitleAccent: {
-    color: '#7C3AED',
+    color: '#FF6B00',
   },
   toggleRow: {
     flexDirection: 'row',

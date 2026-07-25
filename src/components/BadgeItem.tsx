@@ -2,6 +2,7 @@
 // Badge card: earned = orange tint + emoji, locked = greyed out, unseen = red dot
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors, fonts } from '../constants/colors';
 
 interface Props {
   emoji: string;
@@ -24,10 +25,10 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(249,115,22,0.10)',
+    backgroundColor: 'rgba(255,107,0,0.10)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.25)',
+    borderColor: 'rgba(255,107,0,0.25)',
     paddingVertical: 14,
     paddingHorizontal: 4,
     margin: 4,
@@ -48,6 +49,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
   },
   emoji: { fontSize: 24, marginBottom: 6 },
-  name: { fontSize: 10, fontWeight: '600', color: '#f0f0f5', textAlign: 'center' },
+  name: { fontSize: 10, fontFamily: fonts.bold, color: colors.text, textAlign: 'center' },
   dim: { opacity: 0.5 },
 });

@@ -21,6 +21,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../../../lib/supabase/client';
 import { useAuth } from '../../../context/AuthContext';
+import { isEventExpired } from '../../../lib/eventLifecycle';
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   sports:     require('../../../../assets/images/sports.jpg'),
@@ -141,9 +142,17 @@ export default function EventChatScreen() {
       // Fetch event metadata
       const { data: eventData } = await supabase
         .from('event')
-        .select('name, category, profile_id')
+        .select('name, category, profile_id, date_time')
         .eq('id', eventId)
         .single();
+
+      // Chats live and die with the event
+      if (eventData?.date_time && isEventExpired(eventData.date_time)) {
+        setLoading(false);
+        Alert.alert('Event ended', 'This event is over, so its chat is closed.');
+        router.back();
+        return;
+      }
 
       if (eventData?.name)     setEventName(eventData.name);
       if (eventData?.category) {
@@ -418,8 +427,6 @@ export default function EventChatScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {categoryBg && <TiledBackground source={categoryBg} />}
-
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -440,22 +447,28 @@ export default function EventChatScreen() {
       </View>
 
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          ListEmptyComponent={
-            <View style={styles.emptyChat}>
-              <Ionicons name="chatbubbles-outline" size={42} color="#2E2E40" />
-              <Text style={styles.emptyChatText}>No messages yet. Say hello!</Text>
-            </View>
-          }
-        />
+        {/* Category backdrop lives only behind the message list — it ends
+            exactly where the composer begins */}
+        <View style={styles.chatArea}>
+          {categoryBg && <TiledBackground source={categoryBg} />}
+          <FlatList
+            ref={flatListRef}
+            style={styles.messageFlatList}
+            data={messages}
+            keyExtractor={item => item.id}
+            renderItem={renderMessage}
+            contentContainerStyle={styles.messageList}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            ListEmptyComponent={
+              <View style={styles.emptyChat}>
+                <Ionicons name="chatbubbles-outline" size={42} color="#2E2E40" />
+                <Text style={styles.emptyChatText}>No messages yet. Say hello!</Text>
+              </View>
+            }
+          />
+        </View>
 
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
             style={styles.input}
             value={newMessage}
@@ -476,8 +489,6 @@ export default function EventChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-
-      <View style={[styles.bottomBar, { height: Math.max(insets.bottom, 20) }]} />
 
       {/* Members Sheet */}
       <Modal visible={showMembers} transparent animationType="slide" onRequestClose={() => setShowMembers(false)}>
@@ -686,13 +697,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
-  headerTitle:  { fontSize: 16, fontWeight: '700', color: '#F0F0FA' },
+  headerTitle:  { fontSize: 16, fontFamily: 'Nunito_700Bold', color: '#F0F0FA' },
   headerSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 1 },
   headerSubtitle: { fontSize: 12, color: '#5A5A78' },
   headerRight:  { width: 40 },
+  chatArea:     { flex: 1, overflow: 'hidden' },
+  messageFlatList: { flex: 1 },
   messageList:  { padding: 16, paddingBottom: 20 },
   emptyChat:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 10 },
-  emptyChatText:{ color: '#5A5A78', fontSize: 14 },
+  emptyChatText:{ color: '#5A5A78', fontSize: 14, fontFamily: 'Nunito_600SemiBold' },
   messageRow:   { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end' },
   ownRow:       { justifyContent: 'flex-end' },
   otherRow:     { justifyContent: 'flex-start' },
@@ -701,24 +714,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#222230', justifyContent: 'center', alignItems: 'center',
     marginRight: 8, borderWidth: 1, borderColor: '#2E2E40', overflow: 'hidden',
   },
-  avatarText:   { fontSize: 13, fontWeight: '700', color: '#7878A0' },
-  messageBubble:{ maxWidth: '78%', padding: 12, borderRadius: 18 },
-  ownBubble:    { backgroundColor: '#FF6B00', borderBottomRightRadius: 4 },
-  otherBubble:  { backgroundColor: '#1A1A24', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#2E2E40' },
-  senderName:   { fontSize: 11, fontWeight: '700', color: '#A78BFA', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
-  messageText:  { fontSize: 15, color: '#F0F0FA', lineHeight: 21 },
+  avatarText:   { fontSize: 13, fontFamily: 'Nunito_700Bold', color: '#7878A0' },
+  messageBubble:{ maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20 },
+  ownBubble:    { backgroundColor: '#FF6B00', borderBottomRightRadius: 6 },
+  otherBubble:  { backgroundColor: '#1A1A24', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#2E2E40' },
+  senderName:   { fontSize: 11, fontFamily: 'Nunito_700Bold', color: '#FF8A3D', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
+  messageText:  { fontSize: 15, fontFamily: 'Nunito_400Regular', color: '#F0F0FA', lineHeight: 21 },
   ownMessageText: { color: '#fff' },
-  timestamp:    { fontSize: 10, color: '#7878A0', textAlign: 'right', marginTop: 4 },
+  timestamp:    { fontSize: 10, fontFamily: 'Nunito_400Regular', color: '#7878A0', textAlign: 'right', marginTop: 4 },
   ownTimestamp: { color: 'rgba(255,255,255,0.6)' },
   inputContainer: {
     flexDirection: 'row', padding: 12, borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#000',
+    borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#0F0F13',
     alignItems: 'flex-end', gap: 8,
   },
-  bottomBar:    { backgroundColor: '#000' },
   input: {
     flex: 1, borderWidth: 1, borderColor: '#2E2E40', borderRadius: 22,
     paddingHorizontal: 16, paddingVertical: 10, fontSize: 15,
+    fontFamily: 'Nunito_600SemiBold',
     maxHeight: 100, backgroundColor: '#1A1A24', color: '#F0F0FA',
   },
   sendButton: {
@@ -739,14 +752,14 @@ const styles = StyleSheet.create({
     width: 40, height: 4, backgroundColor: '#3D3D5C', borderRadius: 2,
     alignSelf: 'center', marginBottom: 16,
   },
-  sheetTitle: { fontSize: 17, fontWeight: '800', color: '#F0F0FA', marginBottom: 16 },
+  sheetTitle: { fontSize: 17, fontFamily: 'Nunito_800ExtraBold', color: '#F0F0FA', marginBottom: 16 },
   memberRow:        { flexDirection: 'row', alignItems: 'center' },
   memberRowContent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   memberMoreBtn:    { paddingHorizontal: 8, paddingVertical: 12 },
   memberAvatar: { width: 44, height: 44, borderRadius: 22, flexShrink: 0 },
   memberAvatarFallback: { backgroundColor: '#1E1E28', alignItems: 'center', justifyContent: 'center' },
   memberInfo:   { flex: 1 },
-  memberName:   { fontSize: 15, fontWeight: '700', color: '#F0F0FA', marginBottom: 2 },
+  memberName:   { fontSize: 15, fontFamily: 'Nunito_700Bold', color: '#F0F0FA', marginBottom: 2 },
   memberUsername: { fontSize: 13, color: '#7878A0' },
   memberSeparator: { height: 1, backgroundColor: '#1E1E28', marginLeft: 56 },
 
@@ -758,20 +771,20 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: '#1E1E28', alignItems: 'center', justifyContent: 'center',
   },
-  modalTitle:    { fontSize: 17, fontWeight: '800', color: '#F0F0FA' },
+  modalTitle:    { fontSize: 17, fontFamily: 'Nunito_800ExtraBold', color: '#F0F0FA' },
   modalSubtitle: { fontSize: 14, color: '#7878A0', marginBottom: 16, lineHeight: 20 },
   reasonRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16,
     borderBottomWidth: 1, borderBottomColor: '#1E1E28',
   },
   destructiveRow: {},
-  reasonText:      { flex: 1, fontSize: 15, color: '#F0F0FA', fontWeight: '500' },
+  reasonText:      { flex: 1, fontSize: 15, color: '#F0F0FA', fontFamily: 'Nunito_600SemiBold' },
   destructiveText: { color: '#FF4D4D' },
   confirmBadge: {
     backgroundColor: '#1A1A24', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
     marginBottom: 14, borderWidth: 1, borderColor: '#2E2E40', alignSelf: 'flex-start',
   },
-  confirmBadgeText: { fontSize: 14, color: '#A78BFA', fontWeight: '600' },
+  confirmBadgeText: { fontSize: 14, color: '#FF8A3D', fontFamily: 'Nunito_600SemiBold' },
   confirmNote:  { fontSize: 13, color: '#5A5A78', lineHeight: 19, marginBottom: 20 },
   submitBtn: {
     backgroundColor: '#FF6B00', borderRadius: 14, paddingVertical: 15,
@@ -783,10 +796,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A0F0F', borderRadius: 14, paddingVertical: 15,
     alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: '#FF4D4D',
   },
-  submitBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  submitBtnText: { fontSize: 16, fontFamily: 'Nunito_700Bold', color: '#fff' },
   cancelBtn: {
     borderRadius: 14, paddingVertical: 14, alignItems: 'center',
     backgroundColor: '#1A1A24', borderWidth: 1, borderColor: '#2E2E40', marginTop: 2,
   },
-  cancelBtnText: { fontSize: 15, fontWeight: '600', color: '#7878A0' },
+  cancelBtnText: { fontSize: 15, fontFamily: 'Nunito_600SemiBold', color: '#7878A0' },
 });

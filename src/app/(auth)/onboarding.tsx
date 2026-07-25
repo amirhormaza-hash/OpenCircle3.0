@@ -230,12 +230,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "bold",
+    fontFamily: "Nunito_900Black",
+    letterSpacing: -0.5,
     marginBottom: 8,
     color: "#F0F0FA",
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: "Nunito_600SemiBold",
     color: "#7878A0",
   },
   form: {
@@ -283,7 +285,7 @@ const styles = StyleSheet.create({
   editText: {
     color: "#fff",
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "Nunito_700Bold",
   },
   input: {
     backgroundColor: "#1A1A24",
@@ -311,6 +313,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Nunito_800ExtraBold",
+    letterSpacing: 0.3,
   },
 });

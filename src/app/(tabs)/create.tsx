@@ -18,6 +18,8 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase/client';
+import OpenRing from '../../components/OpenRing';
+import { colors, fonts } from '../../constants/colors';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import { File } from 'expo-file-system';
@@ -490,7 +492,7 @@ export default function CreateEventScreen(): React.JSX.Element {
                   style={[styles.pill, level === item && styles.pillActiveLevel]}
                   onPress={() => setLevel(item)}
                 >
-                  <Text style={[styles.pillText, level === item && styles.pillTextActive]}>{item}</Text>
+                  <Text style={[styles.pillText, level === item && styles.pillTextActiveLevel]}>{item}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -575,7 +577,9 @@ export default function CreateEventScreen(): React.JSX.Element {
               </View>
             ) : (
               <>
-                <Ionicons name="flash" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <View style={{ marginRight: 9 }}>
+                  <OpenRing size={18} color="#fff" bg={colors.ember} />
+                </View>
                 <Text style={styles.submitButtonText}>Create Event</Text>
               </>
             )}
@@ -636,12 +640,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 30,
-    fontWeight: '800',
+    fontFamily: fonts.display,
     color: '#F0F0FA',
-    letterSpacing: 0.3,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: fonts.body,
     color: '#5A5A78',
     marginTop: 4,
   },
@@ -668,15 +673,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: fonts.bold,
     color: '#F0F0FA',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 1.2,
   },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#7878A0',
     marginBottom: 6,
     marginTop: 2,
@@ -698,6 +703,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 13,
     fontSize: 15,
+    fontFamily: fonts.body,
     color: '#F0F0FA',
   },
   textArea: {
@@ -708,6 +714,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
     fontSize: 15,
+    fontFamily: fonts.body,
     color: '#F0F0FA',
     height: 110,
     textAlignVertical: 'top',
@@ -775,16 +782,19 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B00',
   },
   pillActiveLevel: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
+    backgroundColor: '#F0F0FA',
+    borderColor: '#F0F0FA',
   },
   pillText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#7878A0',
   },
   pillTextActive: {
     color: '#fff',
+  },
+  pillTextActiveLevel: {
+    color: '#0F0F13',
   },
   imagePickerZone: {
     borderWidth: 2,
@@ -799,12 +809,13 @@ const styles = StyleSheet.create({
   },
   imagePickerTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#F0F0FA',
     marginTop: 4,
   },
   imagePickerSub: {
     fontSize: 12,
+    fontFamily: fonts.body,
     color: '#5A5A78',
   },
   imageGrid: {
@@ -846,7 +857,7 @@ const styles = StyleSheet.create({
   imageTileBadgeText: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   submitButton: {
     backgroundColor: '#FF6B00',
@@ -867,8 +878,9 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontFamily: fonts.display,
+    letterSpacing: 0.4,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -878,7 +890,7 @@ const styles = StyleSheet.create({
   progressText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
 
   // Time modal (iOS)
@@ -915,18 +927,18 @@ const styles = StyleSheet.create({
   },
   timeModalTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fonts.heading,
     color: '#F0F0FA',
   },
   timeModalCancel: {
     fontSize: 15,
     color: '#7878A0',
-    fontWeight: '500',
+    fontFamily: fonts.body,
   },
   timeModalDone: {
     fontSize: 15,
     color: '#FF6B00',
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   timeModalPicker: {
     backgroundColor: '#1A1A24',

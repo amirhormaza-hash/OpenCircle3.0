@@ -194,7 +194,7 @@ export default function EditEventScreen(): React.JSX.Element {
       >
         <View>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonText}>â† Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit Event</Text>
 
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F0F13' },
   scrollContent: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   backButton: { marginBottom: 8 },
-  backButtonText: { color: '#7C3AED', fontSize: 16, fontWeight: '700' },
+  backButtonText: { color: '#FF6B00', fontSize: 16, fontWeight: '700' },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 20, color: '#F0F0FA' },
   label: { marginBottom: 6, fontWeight: '600', color: '#C0C0D8', fontSize: 14 },
   input: {
@@ -350,12 +350,12 @@ const styles = StyleSheet.create({
   },
   selectorButtonText: { fontSize: 16, color: '#F0F0FA' },
   button: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#FF6B00',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#7C3AED',
+    shadowColor: '#FF6B00',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

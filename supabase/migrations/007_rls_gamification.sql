@@ -60,14 +60,22 @@ CREATE POLICY "authenticated can read event ratings"
   ON event_ratings FOR SELECT TO authenticated
   USING (true);
 
+-- Rating is only allowed during the 24h window after the event starts —
+-- the same window in which the event remains visible in the app
+-- (src/lib/eventLifecycle.ts).
 DROP POLICY IF EXISTS "attendees insert own event ratings" ON event_ratings;
 CREATE POLICY "attendees insert own event ratings"
   ON event_ratings FOR INSERT TO authenticated
   WITH CHECK (
     rater_id = auth.uid()
     AND EXISTS (
-      SELECT 1 FROM event_attendees ea
-      WHERE ea.event_id = event_ratings.event_id AND ea.user_id = auth.uid()
+      SELECT 1
+      FROM event_attendees ea
+      JOIN event e ON e.id = ea.event_id
+      WHERE ea.event_id = event_ratings.event_id
+        AND ea.user_id = auth.uid()
+        AND now() >= e.date_time::timestamptz
+        AND now() <  e.date_time::timestamptz + INTERVAL '24 hours'
     )
   );
 

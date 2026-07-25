@@ -25,6 +25,7 @@ import AnimatedEmptyState from '../../components/AnimatedEmptyState';
 import EventDetailsModal, { actionButtonStyles } from '../../components/EventDetailsModal';
 import OpenRing from '../../components/OpenRing';
 import { colors, fonts } from '../../constants/colors';
+import { eventVisibilityCutoffISO } from '../../lib/eventLifecycle';
 import { supabase } from '../../lib/supabase/client';
 import { calculateEventRating } from '../../lib/ratingSystem';
 import { useBadge } from '../../context/BadgeContext';
@@ -193,6 +194,7 @@ export default function Index() {
           position
         )
       `)
+      .gte('date_time', eventVisibilityCutoffISO())
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -649,7 +651,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#FF6B00',
   },
 
   activeChipText: {

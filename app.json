@@ -8,7 +8,7 @@
     "scheme": "opencircle",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "app.opencircle.mobile",
+      "bundleIdentifier": "com.amirhormazahash.opencircle",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app requires access to your photo library to allow you to select a profile picture during onboarding.",
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "app.opencircle.mobile",
+      "package": "com.amirhormazahash.opencircle",
       "adaptiveIcon": {
         "backgroundColor": "#0F0F13",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -26,8 +26,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "CAMERA"
       ]
     },
     "web": {

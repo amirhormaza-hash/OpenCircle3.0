@@ -103,7 +103,7 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <AuthBrandHeader accentColor="#7C3AED" tagline="Join the community" />
+          <AuthBrandHeader accentColor="#FF6B00" tagline="Join the community" />
 
           <View style={styles.card}>
             <Text style={styles.title}>Create Account</Text>
@@ -250,12 +250,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: "Nunito_800ExtraBold",
     marginBottom: 4,
     color: "#F0F0FA",
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: "Nunito_600SemiBold",
     marginBottom: 24,
     color: "#7878A0",
   },
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
   },
   strengthLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "Nunito_700Bold",
     minWidth: 44,
     textAlign: "right",
   },
@@ -296,12 +297,12 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   button: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#FF6B00",
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
     marginTop: 4,
-    shadowColor: "#7C3AED",
+    shadowColor: "#FF6B00",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -311,7 +312,8 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Nunito_800ExtraBold",
+    letterSpacing: 0.3,
   },
   linkButton: {
     marginTop: 20,
@@ -320,9 +322,10 @@ const styles = StyleSheet.create({
   linkButtonText: {
     color: "#7878A0",
     fontSize: 14,
+    fontFamily: "Nunito_600SemiBold",
   },
   linkButtonTextBold: {
-    fontWeight: "700",
-    color: "#7C3AED",
+    fontFamily: "Nunito_800ExtraBold",
+    color: "#FF6B00",
   },
 });

@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { supabase } from '../../../lib/supabase/client';
 import { useAuth } from '../../../context/AuthContext';
+import { fonts } from '../../../constants/colors';
+import { eventVisibilityCutoffISO } from '../../../lib/eventLifecycle';
 
 interface EventItem {
   id: string;
@@ -97,10 +99,12 @@ export default function MessagesScreen() {
     }
 
     const eventIds = attendeeRows.map((r: any) => r.event_id);
+    // Chats live and die with the event: hide once 24h past its start
     const { data: eventDetails } = await supabase
       .from('event')
       .select('id, name, date_time, address, profile_id')
       .in('id', eventIds)
+      .gte('date_time', eventVisibilityCutoffISO())
       .order('date_time', { ascending: true });
 
     const ownerIds = [...new Set((eventDetails ?? []).map((e: any) => e.profile_id).filter(Boolean))];
@@ -351,12 +355,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: fonts.display,
     color: '#F0F0FA',
-    letterSpacing: 0.3,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 13,
+    fontFamily: fonts.body,
     color: '#5A5A78',
     marginTop: 2,
   },
@@ -367,10 +372,10 @@ const styles = StyleSheet.create({
   },
   sectionHeaderText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#5A5A78',
+    fontFamily: fonts.bold,
+    color: '#FF6B00',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
   list: {
     paddingHorizontal: 16,
@@ -398,10 +403,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  cardTime: {
-    fontSize: 11,
-    color: '#5A5A78',
-  },
   dmAvatar: {
     width: 48,
     height: 48,
@@ -419,9 +420,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1E1228',
+    backgroundColor: 'rgba(255,107,0,0.10)',
     borderWidth: 1,
-    borderColor: '#3D1A10',
+    borderColor: 'rgba(255,107,0,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -431,24 +432,31 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.heading,
     color: '#F0F0FA',
     marginBottom: 3,
   },
   cardSub: {
     fontSize: 13,
+    fontFamily: fonts.body,
     color: '#7878A0',
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.heading,
     color: '#F0F0FA',
   },
   emptyText: {
     fontSize: 14,
+    fontFamily: fonts.body,
     color: '#7878A0',
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 20,
+  },
+  cardTime: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    color: '#5A5A78',
   },
 });

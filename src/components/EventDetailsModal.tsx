@@ -16,6 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { fonts } from '../constants/colors';
 
 export type ModalEventItem = {
   id: string;
@@ -118,7 +119,7 @@ export default function EventDetailsModal({
                   }
                 }}
               >
-                <Ionicons name="person-circle-outline" size={15} color="#7C3AED" style={{ marginRight: 6 }} />
+                <Ionicons name="person-circle-outline" size={15} color="#FF6B00" style={{ marginRight: 6 }} />
                 <Text style={styles.ownerLabel}>Hosted by </Text>
                 <Text style={[
                   styles.ownerUsername,
@@ -127,7 +128,7 @@ export default function EventDetailsModal({
                   @{event.owner_username}
                 </Text>
                 {onOwnerPress && event.owner_profile_id && (
-                  <Ionicons name="chevron-forward" size={13} color="#A78BFA" style={{ marginLeft: 2 }} />
+                  <Ionicons name="chevron-forward" size={13} color="#FF8A3D" style={{ marginLeft: 2 }} />
                 )}
               </TouchableOpacity>
             ) : null}
@@ -185,12 +186,12 @@ export default function EventDetailsModal({
               onPress={openMaps}
             >
               <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={16} color="#7C3AED" style={styles.infoIcon} />
+                <Ionicons name="location-outline" size={16} color="#FF6B00" style={styles.infoIcon} />
                 <Text style={[styles.infoValue, addressLinkable && !!event?.address && styles.infoValueLink]}>
                   {event?.address || 'No address provided'}
                 </Text>
                 {addressLinkable && !!event?.address && (
-                  <Ionicons name="navigate-outline" size={14} color="#7C3AED" style={{ marginLeft: 6 }} />
+                  <Ionicons name="navigate-outline" size={14} color="#FF6B00" style={{ marginLeft: 6 }} />
                 )}
               </View>
             </TouchableOpacity>
@@ -198,7 +199,7 @@ export default function EventDetailsModal({
             {/* Date */}
             <View style={styles.infoBox}>
               <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={16} color="#7C3AED" style={styles.infoIcon} />
+                <Ionicons name="calendar-outline" size={16} color="#FF6B00" style={styles.infoIcon} />
                 <Text style={styles.infoValue}>{formattedDate}</Text>
               </View>
             </View>
@@ -206,7 +207,7 @@ export default function EventDetailsModal({
             {/* Guest count */}
             <View style={styles.infoBox}>
               <View style={styles.infoRow}>
-                <Ionicons name="people-outline" size={16} color="#7C3AED" style={styles.infoIcon} />
+                <Ionicons name="people-outline" size={16} color="#FF6B00" style={styles.infoIcon} />
                 <Text style={styles.infoValue}>{event?.number_of_guests ?? 'No guest limit'} guests max</Text>
               </View>
             </View>
@@ -214,7 +215,7 @@ export default function EventDetailsModal({
             {/* Category */}
             <View style={styles.infoBox}>
               <View style={styles.infoRow}>
-                <Ionicons name="grid-outline" size={16} color="#7C3AED" style={styles.infoIcon} />
+                <Ionicons name="grid-outline" size={16} color="#FF6B00" style={styles.infoIcon} />
                 <Text style={styles.infoValue}>{event?.category || 'No category'}</Text>
               </View>
             </View>
@@ -232,7 +233,7 @@ export default function EventDetailsModal({
             {/* Level */}
             <View style={styles.infoBox}>
               <View style={styles.infoRow}>
-                <Ionicons name="bar-chart-outline" size={16} color="#7C3AED" style={styles.infoIcon} />
+                <Ionicons name="bar-chart-outline" size={16} color="#FF6B00" style={styles.infoIcon} />
                 <Text style={styles.infoValue}>{event?.level || 'No level'}</Text>
               </View>
             </View>
@@ -240,7 +241,7 @@ export default function EventDetailsModal({
             {/* Description */}
             <View style={styles.descriptionBox}>
               <View style={styles.infoRow}>
-                <Ionicons name="document-text-outline" size={16} color="#7C3AED" style={styles.infoIcon} />
+                <Ionicons name="document-text-outline" size={16} color="#FF6B00" style={styles.infoIcon} />
                 <Text style={styles.infoLabel}>Description</Text>
               </View>
               <Text style={styles.description}>{event?.description || 'No description provided'}</Text>
@@ -281,7 +282,9 @@ export const actionButtonStyles = StyleSheet.create({
     elevation: 4,
   },
   edit: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#1E1E28',
+    borderWidth: 1,
+    borderColor: '#FF6B00',
   },
   leave: {
     backgroundColor: '#EF4444',
@@ -289,7 +292,7 @@ export const actionButtonStyles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800' as const,
+    fontFamily: 'Nunito_800ExtraBold',
     letterSpacing: 0.3,
   },
 });
@@ -325,8 +328,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '800',
+    fontFamily: fonts.display,
     color: '#F0F0FA',
+    letterSpacing: -0.3,
     marginBottom: 10,
   },
   ownerRow: {
@@ -336,16 +340,16 @@ const styles = StyleSheet.create({
   },
   ownerLabel: {
     fontSize: 13,
+    fontFamily: fonts.body,
     color: '#7878A0',
-    fontWeight: '500',
   },
   ownerUsername: {
     fontSize: 13,
-    color: '#C0B8F0',
-    fontWeight: '700',
+    fontFamily: fonts.bold,
+    color: '#C0C0D8',
   },
   ownerUsernameLink: {
-    color: '#A78BFA',
+    color: '#FF8A3D',
     textDecorationLine: 'underline',
   },
   mainImageWrapper: {
@@ -409,7 +413,7 @@ const styles = StyleSheet.create({
   noImageText: {
     color: '#7878A0',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.body,
   },
   infoBox: {
     backgroundColor: '#222230',
@@ -420,9 +424,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   descriptionBox: {
-    backgroundColor: '#1A1030',
+    backgroundColor: '#222230',
     borderWidth: 1,
-    borderColor: '#3D2A6E',
+    borderColor: '#2E2E40',
     borderRadius: 16,
     padding: 14,
     marginTop: 4,
@@ -435,26 +439,27 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   infoLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#7C3AED',
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: '#FF6B00',
     marginBottom: 6,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
   },
   infoValue: {
     fontSize: 15,
+    fontFamily: fonts.body,
     color: '#F0F0FA',
     lineHeight: 22,
-    fontWeight: '500',
     flex: 1,
   },
   infoValueLink: {
-    color: '#A78BFA',
+    color: '#FF8A3D',
     textDecorationLine: 'underline',
   },
   description: {
     fontSize: 15,
+    fontFamily: fonts.body,
     color: '#C0C0D8',
     lineHeight: 22,
   },
@@ -473,7 +478,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.heading,
     letterSpacing: 0.3,
   },
 });
