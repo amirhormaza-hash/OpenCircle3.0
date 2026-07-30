@@ -1,5 +1,5 @@
-// WhatsApp-style GIF search sheet, powered by Tenor.
-// Set EXPO_PUBLIC_TENOR_KEY (a Google Cloud API key with the Tenor API enabled).
+// WhatsApp-style GIF search sheet, powered by GIPHY.
+// Set EXPO_PUBLIC_GIPHY_KEY (from developers.giphy.com).
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity, Modal, StyleSheet, ActivityIndicator, Dimensions,
@@ -8,12 +8,12 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../constants/colors';
 
-const TENOR_KEY = process.env.EXPO_PUBLIC_TENOR_KEY ?? '';
+const GIPHY_KEY = process.env.EXPO_PUBLIC_GIPHY_KEY ?? '';
 const COLS = 2;
 const GAP = 8;
 const SIDE = 16;
 
-type TenorGif = { id: string; url: string; preview: string };
+type Gif = { id: string; url: string; preview: string };
 
 type Props = {
   visible: boolean;
@@ -23,7 +23,7 @@ type Props = {
 
 export default function GifPicker({ visible, onClose, onSelect }: Props) {
   const [query, setQuery] = useState('');
-  const [gifs, setGifs] = useState<TenorGif[]>([]);
+  const [gifs, setGifs] = useState<Gif[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,20 +31,20 @@ export default function GifPicker({ visible, onClose, onSelect }: Props) {
   const colWidth = (Dimensions.get('window').width - SIDE * 2 - GAP) / COLS;
 
   const fetchGifs = useCallback(async (q: string) => {
-    if (!TENOR_KEY) { setError(true); setLoading(false); return; }
+    if (!GIPHY_KEY) { setError(true); setLoading(false); return; }
     setLoading(true);
     setError(false);
     try {
-      const endpoint = q.trim()
-        ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=24&media_filter=tinygif,gif&contentfilter=high`
-        : `https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=24&media_filter=tinygif,gif&contentfilter=high`;
-      const res = await fetch(endpoint);
+      const base = q.trim()
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=pg-13&bundle=messaging_non_clips`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=pg-13&bundle=messaging_non_clips`;
+      const res = await fetch(base);
       const json = await res.json();
-      const items: TenorGif[] = (json.results ?? []).map((r: any) => ({
-        id: r.id,
-        url: r.media_formats?.gif?.url ?? r.media_formats?.tinygif?.url,
-        preview: r.media_formats?.tinygif?.url ?? r.media_formats?.gif?.url,
-      })).filter((g: TenorGif) => g.url);
+      const items: Gif[] = (json.data ?? []).map((g: any) => ({
+        id: g.id,
+        url: g.images?.downsized?.url ?? g.images?.original?.url,
+        preview: g.images?.fixed_width?.url ?? g.images?.downsized?.url,
+      })).filter((g: Gif) => g.url && g.preview);
       setGifs(items);
     } catch {
       setError(true);
@@ -90,7 +90,7 @@ export default function GifPicker({ visible, onClose, onSelect }: Props) {
             <View style={styles.center}>
               <Ionicons name="cloud-offline-outline" size={40} color={colors.line} />
               <Text style={styles.errorText}>
-                {TENOR_KEY ? "Couldn't load GIFs. Check your connection." : 'GIF search is not configured yet.'}
+                {GIPHY_KEY ? "Couldn't load GIFs. Check your connection." : 'GIF search is not configured yet.'}
               </Text>
             </View>
           ) : loading && gifs.length === 0 ? (
@@ -118,7 +118,7 @@ export default function GifPicker({ visible, onClose, onSelect }: Props) {
             />
           )}
 
-          <Text style={styles.attribution}>Powered by Tenor</Text>
+          <Text style={styles.attribution}>Powered By GIPHY</Text>
         </View>
       </View>
     </Modal>
