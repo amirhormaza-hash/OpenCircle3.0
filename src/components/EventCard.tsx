@@ -10,7 +10,7 @@ import { categoryColor, fonts } from '../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -347,6 +347,9 @@ interface Event {
   profile_id?: string;
   owner_username?: string | null;
   owner_profile_id?: string | null;
+  owner_name?: string | null;
+  owner_avatar?: string | null;
+  owner_rating?: number | 'New' | null;
   rating?: number | null;
   category?: string;
   first_image_url?: string | null;
@@ -668,31 +671,48 @@ export default function EventCard({
     );
   }
 
-  function renderOwnerRow(light: boolean) {
+  // Owner header at the top of the card: profile pic + name.
+  // `overlay` = shown on top of an image (light text, pill background).
+  function renderOwnerHeader(overlay: boolean) {
     if (!event.owner_username) return null;
-    const canNavigate = !!onOwnerPress && !!event.owner_profile_id && !isOwner;
-    const color = light ? 'rgba(255,255,255,0.7)' : '#7878A0';
-    const usernameColor = canNavigate ? (light ? '#FFC499' : '#FF8A3D') : color;
-    return (
-      <TouchableOpacity
-        style={styles.ownerRow}
+    const canNavigate = !!onOwnerPress && !!event.owner_profile_id;
+    const displayName = event.owner_name || event.owner_username;
+    const initial = (displayName || '?').trim().charAt(0).toUpperCase();
+
+    const touchable = (
+      <GHTouchableOpacity
+        style={styles.ownerHeaderTouch}
         activeOpacity={canNavigate ? 0.6 : 1}
-        onPress={(e) => {
-          if (canNavigate) {
-            e.stopPropagation();
-            onOwnerPress!(event.owner_profile_id!);
-          }
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 24 }}
+        onPress={() => {
+          if (canNavigate) onOwnerPress!(event.owner_profile_id!);
         }}
       >
-        <Ionicons name="person-outline" size={12} color={color} style={styles.icon} />
-        <Text style={[styles.ownerText, { color }]}>
-          by{' '}
-          <Text style={[styles.ownerText, { color: usernameColor }, canNavigate && styles.ownerLink]}>
-            @{event.owner_username}
-          </Text>
+        {event.owner_avatar ? (
+          <Image source={{ uri: event.owner_avatar }} style={styles.ownerAvatar} />
+        ) : (
+          <View style={[styles.ownerAvatar, styles.ownerAvatarFallback]}>
+            <Text style={styles.ownerAvatarInitial}>{initial}</Text>
+          </View>
+        )}
+        <Text
+          style={[styles.ownerHeaderName, !overlay && { color: '#F0F0FA' }]}
+          numberOfLines={1}
+        >
+          @{event.owner_username}
         </Text>
-      </TouchableOpacity>
+      </GHTouchableOpacity>
     );
+
+    // Overlay: absolute container at the top-left corner over the image.
+    if (overlay) {
+      return (
+        <View style={styles.ownerHeaderOverlay} pointerEvents="box-none">
+          {touchable}
+        </View>
+      );
+    }
+    return <View style={styles.ownerHeader}>{touchable}</View>;
   }
 
   function renderActions() {
@@ -772,10 +792,10 @@ export default function EventCard({
               locations={[0.3, 0.65, 1]}
               style={styles.overlay}
             />
+            {renderOwnerHeader(true)}
             {renderCategoryChip(true)}
             <View style={styles.textContent}>
               <Text style={styles.title}>{event.name}</Text>
-              {renderOwnerRow(true)}
               <View style={styles.infoContainer}>
                 <View style={styles.row}>
                   <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.85)" style={styles.icon} />
@@ -802,10 +822,10 @@ export default function EventCard({
               locations={[0, 0.5, 1]}
               style={styles.overlay}
             />
+            {renderOwnerHeader(true)}
             {renderCategoryChip(true)}
             <View style={styles.textContent}>
               <Text style={styles.title}>{event.name}</Text>
-              {renderOwnerRow(true)}
               <View style={styles.infoContainer}>
                 <View style={styles.row}>
                   <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.85)" style={styles.icon} />
@@ -826,9 +846,9 @@ export default function EventCard({
           </View>
         ) : (
           <View style={styles.placeholderCard}>
+            {renderOwnerHeader(false)}
             {renderCategoryChip(false)}
             <Text style={styles.title}>{event.name}</Text>
-            {renderOwnerRow(false)}
             <View style={styles.infoContainer}>
               <View style={styles.row}>
                 <Ionicons name="calendar-outline" size={13} color="#7878A0" style={styles.icon} />
@@ -863,7 +883,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
     marginHorizontal: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   imageCard: {
     width: '100%',
@@ -906,8 +926,53 @@ const styles = StyleSheet.create({
   categoryChipFloating: {
     position: 'absolute',
     top: 14,
-    left: 14,
+    right: 14,
     zIndex: 5,
+  },
+  // Owner header — profile pic + name at the top of the card
+  ownerHeaderOverlay: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    zIndex: 5,
+    maxWidth: '80%',
+  },
+  ownerHeaderTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    // Larger tap box around the avatar + username
+    paddingVertical: 10,
+    paddingLeft: 8,
+    paddingRight: 22,
+    borderRadius: 999,
+  },
+  ownerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  ownerAvatar: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#2E2E40',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)',
+  },
+  ownerAvatarFallback: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF6B00' },
+  ownerAvatarInitial: { color: '#fff', fontSize: 14, fontFamily: fonts.heading },
+  ownerHeaderText: { flexShrink: 1 },
+  ownerHeaderName: {
+    color: '#FFFFFF', fontSize: 14, fontFamily: fonts.heading, letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  ownerHeaderHandle: {
+    color: 'rgba(255,255,255,0.85)', fontSize: 11, fontFamily: fonts.body, marginTop: -1,
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  ownerHeaderMeta: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  ownerRatingBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  ownerRatingText: {
+    color: '#FFD24A', fontSize: 11, fontFamily: fonts.bold,
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   categoryChipInline: {
     alignSelf: 'flex-start',

@@ -66,6 +66,9 @@ type EventItem = {
   profile_id?: string;
   owner_username?: string | null;
   owner_profile_id?: string | null;
+  owner_name?: string | null;
+  owner_avatar?: string | null;
+  owner_rating?: number | 'New' | null;
   rating?: number | null;
   description?: string;
   category?: string;
@@ -217,7 +220,7 @@ export default function Index() {
         ? supabase.from('event_attendees').select('event_id, user_id').in('event_id', eventIds)
         : Promise.resolve({ data: [] }),
       ownerIds.length > 0
-        ? supabase.from('profiles').select('id, username').in('id', ownerIds)
+        ? supabase.from('profiles').select('id, username, name, profile_image_url').in('id', ownerIds)
         : Promise.resolve({ data: [] }),
       eventIds.length > 0
         ? supabase.from('event_ratings').select('event_id, stars').in('event_id', eventIds)
@@ -230,7 +233,13 @@ export default function Index() {
     });
 
     const usernameMap: Record<string, string> = {};
-    (ownerResult.data || []).forEach((p: any) => { usernameMap[p.id] = p.username; });
+    const ownerNameMap: Record<string, string | null> = {};
+    const ownerAvatarMap: Record<string, string | null> = {};
+    (ownerResult.data || []).forEach((p: any) => {
+      usernameMap[p.id] = p.username;
+      ownerNameMap[p.id] = p.name ?? null;
+      ownerAvatarMap[p.id] = p.profile_image_url ?? null;
+    });
 
     // Build star-counts per event for rating calculation
     type StarMap = { 1: number; 2: number; 3: number; 4: number; 5: number };
@@ -263,6 +272,8 @@ export default function Index() {
           attendee_count: attendees,
           owner_profile_id: item.profile_id ?? null,
           owner_username: usernameMap[item.profile_id] ?? null,
+          owner_name: ownerNameMap[item.profile_id] ?? null,
+          owner_avatar: ownerAvatarMap[item.profile_id] ?? null,
           rating,
         };
       });
@@ -551,7 +562,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingTop: 16,
-    paddingBottom: 4,
+    paddingBottom: 12,
   },
 
   filterLeft: {

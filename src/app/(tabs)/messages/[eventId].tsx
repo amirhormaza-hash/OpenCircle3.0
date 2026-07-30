@@ -13,6 +13,7 @@ import {
   Image,
   ImageSourcePropType,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -126,6 +127,14 @@ export default function EventChatScreen() {
   }>({ visible: false, step: 'actions', member: null, action: null, reason: '' });
 
   const flatListRef = useRef<FlatList>(null);
+
+  // Keep the latest message visible when the keyboard opens
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -302,11 +311,14 @@ export default function EventChatScreen() {
   }
 
   async function sendMediaMessage(mediaUrl: string, mediaType: MediaType) {
-    if (!user || !chatId) return;
+    if (!user || !chatId) { Alert.alert('Send failed', `Missing ${!user ? 'user' : 'chatId'}`); return; }
     const { error } = await supabase.from('chat_messages').insert({
       chat_id: chatId, user_id: user.id, messages: '', media_url: mediaUrl, media_type: mediaType,
     });
-    if (error) Alert.alert('Error', 'Could not send media.');
+    if (error) {
+      console.error('chat_messages media insert error:', error);
+      Alert.alert('Send failed (DB insert)', `${error.message}\n\ncode: ${error.code ?? 'none'}\nhint: ${error.hint ?? 'none'}\ndetails: ${error.details ?? 'none'}`);
+    }
   }
 
   async function pickAndSendMedia() {
@@ -325,8 +337,10 @@ export default function EventChatScreen() {
     try {
       const { url, mediaType } = await uploadChatMedia(user.id, result.assets[0].uri);
       await sendMediaMessage(url, mediaType);
-    } catch {
-      Alert.alert('Error', 'Could not upload. Try a smaller file.');
+    } catch (e: any) {
+      console.error('uploadChatMedia error:', e);
+      const msg = e?.message ?? e?.error?.message ?? JSON.stringify(e);
+      Alert.alert('Upload failed', `${msg}${e?.statusCode ? `\n\nstatus: ${e.statusCode}` : ''}`);
     } finally {
       setUploadingMedia(false);
     }
@@ -796,7 +810,7 @@ const styles = StyleSheet.create({
   },
   avatarText:   { fontSize: 13, fontFamily: 'Nunito_700Bold', color: '#7878A0' },
   messageBubble:{ maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20 },
-  mediaBubble:  { padding: 5 },
+  mediaBubble:  { padding: 4 },
   ownBubble:    { backgroundColor: '#FF6B00', borderBottomRightRadius: 6 },
   otherBubble:  { backgroundColor: '#1A1A24', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#2E2E40' },
   senderName:   { fontSize: 11, fontFamily: 'Nunito_700Bold', color: '#FF8A3D', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },

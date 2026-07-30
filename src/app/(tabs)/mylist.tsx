@@ -37,6 +37,8 @@ type EventItem = {
   profile_id?: string;
   owner_username?: string | null;
   owner_profile_id?: string | null;
+  owner_name?: string | null;
+  owner_avatar?: string | null;
   rating?: number | null;
   description?: string;
   category?: string;
@@ -165,7 +167,7 @@ export default function MyList() {
         ? supabase.from('event_attendees').select('event_id').in('event_id', joinedIds)
         : Promise.resolve({ data: [] }),
       ownerIds.length > 0
-        ? supabase.from('profiles').select('id, username').in('id', ownerIds)
+        ? supabase.from('profiles').select('id, username, name, profile_image_url').in('id', ownerIds)
         : Promise.resolve({ data: [] }),
       joinedIds.length > 0
         ? supabase.from('event_ratings').select('event_id, stars, rater_id').in('event_id', joinedIds)
@@ -175,6 +177,13 @@ export default function MyList() {
     let countMap: Record<string, number> = {};
     (attendeeResult.data || []).forEach((a: any) => {
       countMap[a.event_id] = (countMap[a.event_id] || 0) + 1;
+    });
+
+    const ownerNameMap: Record<string, string | null> = {};
+    const ownerAvatarMap: Record<string, string | null> = {};
+    (ownerResult.data || []).forEach((p: any) => {
+      ownerNameMap[p.id] = p.name ?? null;
+      ownerAvatarMap[p.id] = p.profile_image_url ?? null;
     });
 
     const usernameMap: Record<string, string> = {};
@@ -213,6 +222,8 @@ export default function MyList() {
         attendee_count: attendees,
         owner_profile_id: item.profile_id ?? null,
         owner_username: usernameMap[item.profile_id] ?? null,
+        owner_name: ownerNameMap[item.profile_id] ?? null,
+        owner_avatar: ownerAvatarMap[item.profile_id] ?? null,
         rating,
       };
     });
@@ -235,10 +246,16 @@ export default function MyList() {
 
         const inviteOwnerIds = [...new Set((inviteEvents || []).map((e: any) => e.profile_id).filter(Boolean))];
         const { data: inviteOwners } = inviteOwnerIds.length > 0
-          ? await supabase.from('profiles').select('id, username').in('id', inviteOwnerIds)
+          ? await supabase.from('profiles').select('id, username, name, profile_image_url').in('id', inviteOwnerIds)
           : { data: [] as any[] };
         const inviteOwnerMap: Record<string, string> = {};
-        (inviteOwners || []).forEach((p: any) => { inviteOwnerMap[p.id] = p.username; });
+        const inviteNameMap: Record<string, string | null> = {};
+        const inviteAvatarMap: Record<string, string | null> = {};
+        (inviteOwners || []).forEach((p: any) => {
+          inviteOwnerMap[p.id] = p.username;
+          inviteNameMap[p.id] = p.name ?? null;
+          inviteAvatarMap[p.id] = p.profile_image_url ?? null;
+        });
 
         const formattedInvites: EventItem[] = (inviteEvents || [])
           .filter((item: any) => !isEventExpired(item.date_time))
@@ -251,6 +268,8 @@ export default function MyList() {
               first_image_url: imageUrls[0] || null,
               owner_profile_id: item.profile_id ?? null,
               owner_username: inviteOwnerMap[item.profile_id] ?? null,
+              owner_name: inviteNameMap[item.profile_id] ?? null,
+              owner_avatar: inviteAvatarMap[item.profile_id] ?? null,
             };
           });
         setInvites(formattedInvites);

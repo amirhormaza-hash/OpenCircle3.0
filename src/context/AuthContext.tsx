@@ -12,7 +12,7 @@ export interface User {
   name: string;
   email: string;
   username: string;
-  profileImage?: string;
+  profileImage?: string | null;
   onboardingCompleted?: boolean;
 }
 

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,6 +77,14 @@ export default function DmScreen() {
   }>({ visible: false, step: 'reasons', reason: '' });
 
   const listRef = useRef<FlatList<DmMessage>>(null);
+
+  // Keep the latest message visible when the keyboard opens
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (!me || !theirId) return;
@@ -165,10 +174,14 @@ export default function DmScreen() {
   }
 
   async function sendMediaMessage(mediaUrl: string, mediaType: MediaType) {
-    if (!chatId || !me) return;
-    await supabase.from('direct_messages').insert({
+    if (!chatId || !me) { Alert.alert('Send failed', `Missing ${!me ? 'user' : 'chatId'}`); return; }
+    const { error } = await supabase.from('direct_messages').insert({
       chat_id: chatId, sender_id: me.id, content: '', media_url: mediaUrl, media_type: mediaType,
     });
+    if (error) {
+      console.error('direct_messages media insert error:', error);
+      Alert.alert('Send failed (DB insert)', `${error.message}\n\ncode: ${error.code ?? 'none'}\nhint: ${error.hint ?? 'none'}\ndetails: ${error.details ?? 'none'}`);
+    }
   }
 
   async function pickAndSendMedia() {
@@ -187,8 +200,10 @@ export default function DmScreen() {
     try {
       const { url, mediaType } = await uploadChatMedia(me.id, result.assets[0].uri);
       await sendMediaMessage(url, mediaType);
-    } catch {
-      Alert.alert('Error', 'Could not upload. Try a smaller file.');
+    } catch (e: any) {
+      console.error('uploadChatMedia error:', e);
+      const msg = e?.message ?? e?.error?.message ?? JSON.stringify(e);
+      Alert.alert('Upload failed', `${msg}${e?.statusCode ? `\n\nstatus: ${e.statusCode}` : ''}`);
     } finally {
       setUploadingMedia(false);
     }
@@ -580,7 +595,7 @@ const styles = StyleSheet.create({
   avatar:      { width: 28, height: 28, borderRadius: 14, flexShrink: 0, overflow: 'hidden' },
   avatarFallback: { backgroundColor: '#1E1E28', alignItems: 'center', justifyContent: 'center' },
   bubble:      { maxWidth: '75%', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10 },
-  mediaBubble: { padding: 5 },
+  mediaBubble: { padding: 4 },
   bubbleMe:    { backgroundColor: '#FF6B00', borderBottomRightRadius: 6 },
   bubbleThem:  { backgroundColor: '#1E1E28', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#2E2E40' },
   bubbleText:  { fontSize: 15, fontFamily: 'Nunito_400Regular', lineHeight: 21 },

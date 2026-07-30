@@ -693,7 +693,7 @@ export default function ProfileSettings() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const router = useRouter();
 
-  const handleUpdateProfileImage = async () => {
+  const pickAndUploadProfileImage = async () => {
     if (!user) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -720,6 +720,32 @@ export default function ProfileSettings() {
       } finally {
         setIsUpdating(false);
       }
+    }
+  };
+
+  const removeProfileImage = async () => {
+    if (!user) return;
+    setIsUpdating(true);
+    try {
+      await updateUser({ profileImage: null });
+      Alert.alert("Removed", "Your profile photo was removed.");
+    } catch {
+      Alert.alert("Error", "Could not remove your photo. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Tapping the avatar: change, or (if one exists) remove.
+  const handleUpdateProfileImage = () => {
+    if (user?.profileImage) {
+      Alert.alert("Profile photo", undefined, [
+        { text: "Change photo", onPress: pickAndUploadProfileImage },
+        { text: "Remove photo", style: "destructive", onPress: removeProfileImage },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    } else {
+      pickAndUploadProfileImage();
     }
   };
 

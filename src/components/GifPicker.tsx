@@ -26,19 +26,27 @@ export default function GifPicker({ visible, onClose, onSelect }: Props) {
   const [gifs, setGifs] = useState<Gif[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const colWidth = (Dimensions.get('window').width - SIDE * 2 - GAP) / COLS;
 
   const fetchGifs = useCallback(async (q: string) => {
-    if (!GIPHY_KEY) { setError(true); setLoading(false); return; }
+    if (!GIPHY_KEY) { setError(true); setErrorMsg('EXPO_PUBLIC_GIPHY_KEY is empty in this build'); setLoading(false); return; }
     setLoading(true);
     setError(false);
+    setErrorMsg('');
     try {
       const base = q.trim()
         ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=pg-13&bundle=messaging_non_clips`
         : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=pg-13&bundle=messaging_non_clips`;
       const res = await fetch(base);
+      if (!res.ok) {
+        const text = await res.text();
+        setError(true);
+        setErrorMsg(`HTTP ${res.status}: ${text.slice(0, 160)}`);
+        return;
+      }
       const json = await res.json();
       const items: Gif[] = (json.data ?? []).map((g: any) => ({
         id: g.id,
@@ -46,8 +54,9 @@ export default function GifPicker({ visible, onClose, onSelect }: Props) {
         preview: g.images?.fixed_width?.url ?? g.images?.downsized?.url,
       })).filter((g: Gif) => g.url && g.preview);
       setGifs(items);
-    } catch {
+    } catch (e: any) {
       setError(true);
+      setErrorMsg(e?.message ? String(e.message) : String(e));
     } finally {
       setLoading(false);
     }
@@ -90,8 +99,9 @@ export default function GifPicker({ visible, onClose, onSelect }: Props) {
             <View style={styles.center}>
               <Ionicons name="cloud-offline-outline" size={40} color={colors.line} />
               <Text style={styles.errorText}>
-                {GIPHY_KEY ? "Couldn't load GIFs. Check your connection." : 'GIF search is not configured yet.'}
+                {GIPHY_KEY ? "Couldn't load GIFs." : 'GIF search is not configured yet.'}
               </Text>
+              {!!errorMsg && <Text style={styles.errorDetail}>{errorMsg}</Text>}
             </View>
           ) : loading && gifs.length === 0 ? (
             <ActivityIndicator color={colors.ember} style={{ marginTop: 40 }} />
@@ -141,6 +151,7 @@ const styles = StyleSheet.create({
   cancel: { fontSize: 14, fontFamily: fonts.bold, color: colors.ember, marginLeft: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 30 },
   errorText: { fontSize: 14, fontFamily: fonts.body, color: colors.muted, textAlign: 'center' },
+  errorDetail: { fontSize: 12, fontFamily: fonts.body, color: colors.mutedDeep, textAlign: 'center', paddingHorizontal: 20 },
   emptyText: { fontSize: 14, fontFamily: fonts.body, color: colors.muted, textAlign: 'center', marginTop: 30 },
   attribution: { fontSize: 11, fontFamily: fonts.body, color: colors.mutedDeep, textAlign: 'center', paddingVertical: 6 },
 });
