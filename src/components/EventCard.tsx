@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, ImageSourcePropType } from 'react-native';
 import { supabase } from '../lib/supabase/client';
+import { markInviteLeft } from '../lib/invitesQueries';
 import { categoryColor, fonts } from '../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -349,6 +350,7 @@ interface Event {
   rating?: number | null;
   category?: string;
   first_image_url?: string | null;
+  visibility?: string;
 }
 
 interface Props {
@@ -369,6 +371,12 @@ interface Props {
   myStars?: number | null;
   /** Return true when the rating was saved — the card then animates away and calls onLeave. */
   onRate?: (stars: 1 | 2 | 3 | 4 | 5) => boolean | void | Promise<boolean | void>;
+  /** Invitation to a friends-only event — show Accept / Reject instead of Join. */
+  inviteMode?: boolean;
+  onAccept?: () => void;
+  onReject?: () => void;
+  /** Host of a friends-only event — show an "Invitees" button. */
+  onViewInvitees?: (event: Event) => void;
 }
 
 function RateEventRow({
@@ -446,6 +454,7 @@ export default function EventCard({
   event, onPress, onDelete, onJoin, onLeave, onEdit, onSkip, onOwnerPress,
   distanceLabel, swipeable = false, slideDirection = 'right',
   ratable = false, myStars = null, onRate,
+  inviteMode = false, onAccept, onReject, onViewInvitees,
 }: Props) {
   const [isJoined, setIsJoined] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -574,6 +583,8 @@ export default function EventCard({
             if (error) {
               Alert.alert('Error', 'Could not leave event. Please try again.');
             } else {
+              // If this was an invite, clear it so the host no longer counts them.
+              markInviteLeft(event.id, user.id).catch(() => {});
               setIsJoined(false);
               if (onLeave) animateSendToList(onLeave);
             }
@@ -687,15 +698,45 @@ export default function EventCard({
   function renderActions() {
     if (isOwner) {
       return (
+        <View>
+          {event.visibility === 'friends' && onViewInvitees && (
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onViewInvitees(event); }}
+              style={[styles.actionButton, styles.inviteesButton]}
+            >
+              <Ionicons name="people-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.actionText}>Invitees</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.ownerButtonRow}>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit?.(event); }}
+              style={[styles.actionButton, styles.editButton, { flex: 1 }]}
+            >
+              <Text style={styles.actionText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDelete} style={[styles.actionButton, styles.deleteButton, { flex: 1 }]}>
+              <Text style={styles.actionText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    if (inviteMode) {
+      return (
         <View style={styles.ownerButtonRow}>
           <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit?.(event); }}
-            style={[styles.actionButton, styles.editButton, { flex: 1 }]}
+            onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); onAccept?.(); }}
+            style={[styles.actionButton, styles.acceptButton, { flex: 1 }]}
           >
-            <Text style={styles.actionText}>Edit</Text>
+            <Ionicons name="checkmark" size={17} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.actionText}>Accept</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} style={[styles.actionButton, styles.deleteButton, { flex: 1 }]}>
-            <Text style={styles.actionText}>Delete</Text>
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onReject?.(); }}
+            style={[styles.actionButton, styles.rejectButton, { flex: 1 }]}
+          >
+            <Text style={styles.actionText}>Reject</Text>
           </TouchableOpacity>
         </View>
       );
@@ -893,6 +934,23 @@ const styles = StyleSheet.create({
   },
   deleteButton: { backgroundColor: '#EF4444' },
   editButton: { backgroundColor: '#FF6B00' },
+  inviteesButton: {
+    backgroundColor: '#1E1E28',
+    borderWidth: 1.5,
+    borderColor: '#FF6B00',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  acceptButton: {
+    backgroundColor: '#22C55E',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  rejectButton: {
+    backgroundColor: '#1E1E28',
+    borderWidth: 1.5,
+    borderColor: '#2E2E40',
+  },
   ownerButtonRow: {
     flexDirection: 'row',
     gap: 8,

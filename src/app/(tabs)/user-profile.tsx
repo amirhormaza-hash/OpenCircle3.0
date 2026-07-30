@@ -35,6 +35,14 @@ import {
   fetchEventStats,
   fetchUserReputationScore,
 } from '../../lib/profileQueries';
+import {
+  getFriendState,
+  sendFriendRequest,
+  acceptFriendRequest,
+  removeFriend,
+  type FriendState,
+} from '../../lib/friendsQueries';
+import Toast from 'react-native-toast-message';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -113,6 +121,10 @@ export default function UserProfileScreen() {
   const [loading, setLoading]               = useState(true);
   const [notFound, setNotFound]             = useState(false);
 
+  // Friend flow
+  const [friendState, setFriendState] = useState<FriendState>('none');
+  const [friendBusy, setFriendBusy]   = useState(false);
+
   // Rating flow
   const [rateableEvent, setRateableEvent] = useState<{ id: string; name: string } | null>(null);
   const [showModal, setShowModal]         = useState(false);
@@ -190,6 +202,10 @@ export default function UserProfileScreen() {
       fetchUserReputationScore(userId),
     ]);
 
+    if (me && !isOwnProfile) {
+      getFriendState(me.id, userId).then(setFriendState).catch(() => {});
+    }
+
     const vouchCount = Object.values(repTags as Record<string, number>).reduce((a, b) => a + b, 0);
 
     setProfile(profileData);
@@ -205,6 +221,46 @@ export default function UserProfileScreen() {
     } catch {
       setLoading(false);
     }
+  }
+
+  async function handleFriendPress() {
+    if (!me || friendBusy) return;
+    setFriendBusy(true);
+    const prev = friendState;
+
+    if (friendState === 'none') {
+      setFriendState('requested_by_me'); // optimistic
+      const { error } = await sendFriendRequest(me.id, userId);
+      if (error) { setFriendState(prev); Alert.alert('Error', 'Could not send friend request.'); }
+      else Toast.show({ type: 'success', text1: 'Friend request sent', position: 'bottom' });
+    } else if (friendState === 'requested_by_them') {
+      setFriendState('friends');
+      const { error } = await acceptFriendRequest(me.id, userId);
+      if (error) { setFriendState(prev); Alert.alert('Error', 'Could not accept request.'); }
+      else Toast.show({ type: 'success', text1: 'You are now friends', position: 'bottom' });
+    } else if (friendState === 'requested_by_me') {
+      setFriendState('none');
+      const { error } = await removeFriend(me.id, userId);
+      if (error) { setFriendState(prev); Alert.alert('Error', 'Could not cancel request.'); }
+    } else if (friendState === 'friends') {
+      // Confirm before unfriending
+      setFriendBusy(false);
+      Alert.alert('Remove friend', `Remove ${profile?.name ?? 'this person'} from your friends?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove', style: 'destructive',
+          onPress: async () => {
+            setFriendBusy(true);
+            setFriendState('none');
+            const { error } = await removeFriend(me.id, userId);
+            if (error) { setFriendState('friends'); Alert.alert('Error', 'Could not remove friend.'); }
+            setFriendBusy(false);
+          },
+        },
+      ]);
+      return;
+    }
+    setFriendBusy(false);
   }
 
   function toggleTag(tag: string) {
@@ -348,22 +404,50 @@ export default function UserProfileScreen() {
 
             {/* Action buttons — only for other users */}
             {!isOwnProfile && (
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={styles.dmButton}
-                  onPress={() => router.push(`/(tabs)/messages/dm/${userId}` as any)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="chatbubble-outline" size={16} color="#f0f0f5" />
-                  <Text style={styles.dmButtonText}>Message</Text>
-                </TouchableOpacity>
-                {rateableEvent && (
-                  <TouchableOpacity style={styles.rateButton} onPress={() => setShowModal(true)} activeOpacity={0.85}>
-                    <Ionicons name="star-outline" size={16} color="#FF6B00" />
-                    <Text style={styles.rateButtonText}>Rate</Text>
+              <>
+                {(() => {
+                  const cfg = {
+                    none:              { label: 'Add Friend',     icon: 'person-add-outline',      filled: true },
+                    requested_by_them: { label: 'Accept Request', icon: 'checkmark-circle-outline', filled: true },
+                    requested_by_me:   { label: 'Requested',      icon: 'time-outline',            filled: false },
+                    friends:           { label: 'Friends',        icon: 'checkmark-done-outline',  filled: false },
+                  }[friendState];
+                  return (
+                    <TouchableOpacity
+                      style={[styles.friendBtn, cfg.filled ? styles.friendBtnFilled : styles.friendBtnOutline]}
+                      onPress={handleFriendPress}
+                      disabled={friendBusy}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name={cfg.icon as 'person-add-outline'}
+                        size={17}
+                        color={cfg.filled ? '#fff' : '#FF6B00'}
+                      />
+                      <Text style={[styles.friendBtnText, !cfg.filled && styles.friendBtnTextOutline]}>
+                        {cfg.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })()}
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={styles.dmButton}
+                    onPress={() => router.push(`/(tabs)/messages/dm/${userId}` as any)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="chatbubble-outline" size={16} color="#f0f0f5" />
+                    <Text style={styles.dmButtonText}>Message</Text>
                   </TouchableOpacity>
-                )}
-              </View>
+                  {rateableEvent && (
+                    <TouchableOpacity style={styles.rateButton} onPress={() => setShowModal(true)} activeOpacity={0.85}>
+                      <Ionicons name="star-outline" size={16} color="#FF6B00" />
+                      <Text style={styles.rateButtonText}>Rate</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
             )}
           </View>
         ))}
@@ -581,8 +665,18 @@ const styles = StyleSheet.create({
   bio: { fontSize: 14, fontFamily: fonts.body, color: colors.muted, lineHeight: 20, marginBottom: 12 },
   bioHint: { fontSize: 13, fontFamily: fonts.regular, color: '#3a3a50', fontStyle: 'italic', marginBottom: 12 },
 
+  // Friend button (primary CTA)
+  friendBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 14, paddingVertical: 14, marginTop: 4,
+  },
+  friendBtnFilled: { backgroundColor: colors.ember },
+  friendBtnOutline: { backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.ember },
+  friendBtnText: { fontSize: 15, fontFamily: fonts.heading, color: '#fff' },
+  friendBtnTextOutline: { color: colors.ember },
+
   // Action buttons
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   dmButton: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: colors.card, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',

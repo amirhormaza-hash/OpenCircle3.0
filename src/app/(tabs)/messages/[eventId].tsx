@@ -19,9 +19,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { BlurView } from 'expo-blur';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../lib/supabase/client';
 import { useAuth } from '../../../context/AuthContext';
 import { isEventExpired } from '../../../lib/eventLifecycle';
+import { uploadChatMedia } from '../../../lib/supabase/storage';
+import MediaBubble, { type MediaType } from '../../../components/MediaBubble';
+import GifPicker from '../../../components/GifPicker';
+import FullScreenImageViewer from '../../../components/FullScreenImageViewer';
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   sports:     require('../../../../assets/images/sports.jpg'),
@@ -64,6 +69,8 @@ interface Message {
   user_id: string;
   created_at: string;
   chat_id: string;
+  media_url?: string | null;
+  media_type?: MediaType | null;
   profile?: { name: string; profile_image_url?: string };
 }
 
@@ -96,6 +103,9 @@ export default function EventChatScreen() {
   const [categoryBg, setCategoryBg]   = useState<ImageSourcePropType | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [ownerId, setOwnerId]         = useState<string | null>(null);
+  const [gifPickerVisible, setGifPickerVisible] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   // Members sheet
   const [showMembers, setShowMembers]     = useState(false);
@@ -209,7 +219,7 @@ export default function EventChatScreen() {
       // Load message history
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('id, chat_id, messages, user_id, created_at, profile:profiles!user_id(name, profile_image_url)')
+        .select('id, chat_id, messages, media_url, media_type, user_id, created_at, profile:profiles!user_id(name, profile_image_url)')
         .eq('chat_id', resolvedChatId)
         .order('created_at', { ascending: true });
 
@@ -291,6 +301,41 @@ export default function EventChatScreen() {
     setSending(false);
   }
 
+  async function sendMediaMessage(mediaUrl: string, mediaType: MediaType) {
+    if (!user || !chatId) return;
+    const { error } = await supabase.from('chat_messages').insert({
+      chat_id: chatId, user_id: user.id, messages: '', media_url: mediaUrl, media_type: mediaType,
+    });
+    if (error) Alert.alert('Error', 'Could not send media.');
+  }
+
+  async function pickAndSendMedia() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to share photos and videos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      quality: 0.8,
+      videoMaxDuration: 60,
+    });
+    if (result.canceled || !result.assets?.[0] || !user) return;
+    setUploadingMedia(true);
+    try {
+      const { url, mediaType } = await uploadChatMedia(user.id, result.assets[0].uri);
+      await sendMediaMessage(url, mediaType);
+    } catch {
+      Alert.alert('Error', 'Could not upload. Try a smaller file.');
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
+
+  function handleGifSelected(gifUrl: string) {
+    sendMediaMessage(gifUrl, 'gif');
+  }
+
   // ── Message reporting ────────────────────────────────────────────────────────
 
   function handleReportMessage(message: Message) {
@@ -361,17 +406,28 @@ export default function EventChatScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.messageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}
+          style={[
+            styles.messageBubble,
+            isOwn ? styles.ownBubble : styles.otherBubble,
+            item.media_type ? styles.mediaBubble : null,
+          ]}
           activeOpacity={0.9}
           onLongPress={!isOwn ? () => handleReportMessage(item) : undefined}
           delayLongPress={500}
         >
           {!isOwn && (
             <TouchableOpacity onPress={() => goToProfile(item.user_id)} activeOpacity={0.7}>
-              <Text style={styles.senderName}>{profileName}</Text>
+              <Text style={[styles.senderName, item.media_type ? styles.senderNameOnMedia : null]}>{profileName}</Text>
             </TouchableOpacity>
           )}
-          <Text style={[styles.messageText, isOwn && styles.ownMessageText]}>{item.messages}</Text>
+          {item.media_url && item.media_type ? (
+            <MediaBubble url={item.media_url} type={item.media_type} onPressImage={(u) => setFullScreenImage(u)} />
+          ) : null}
+          {item.messages ? (
+            <Text style={[styles.messageText, isOwn && styles.ownMessageText, item.media_type ? { marginTop: 6 } : null]}>
+              {item.messages}
+            </Text>
+          ) : null}
           <Text style={[styles.timestamp, isOwn && styles.ownTimestamp]}>
             {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
@@ -469,6 +525,23 @@ export default function EventChatScreen() {
         </View>
 
         <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={pickAndSendMedia}
+            disabled={uploadingMedia || !chatId}
+          >
+            {uploadingMedia
+              ? <ActivityIndicator size="small" color="#FF6B00" />
+              : <Ionicons name="add-circle-outline" size={26} color="#FF6B00" />
+            }
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.gifButton}
+            onPress={() => setGifPickerVisible(true)}
+            disabled={!chatId}
+          >
+            <Text style={styles.gifButtonText}>GIF</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             value={newMessage}
@@ -489,6 +562,13 @@ export default function EventChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <GifPicker
+        visible={gifPickerVisible}
+        onClose={() => setGifPickerVisible(false)}
+        onSelect={handleGifSelected}
+      />
+      <FullScreenImageViewer uri={fullScreenImage} onClose={() => setFullScreenImage(null)} />
 
       {/* Members Sheet */}
       <Modal visible={showMembers} transparent animationType="slide" onRequestClose={() => setShowMembers(false)}>
@@ -716,9 +796,11 @@ const styles = StyleSheet.create({
   },
   avatarText:   { fontSize: 13, fontFamily: 'Nunito_700Bold', color: '#7878A0' },
   messageBubble:{ maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20 },
+  mediaBubble:  { padding: 5 },
   ownBubble:    { backgroundColor: '#FF6B00', borderBottomRightRadius: 6 },
   otherBubble:  { backgroundColor: '#1A1A24', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#2E2E40' },
   senderName:   { fontSize: 11, fontFamily: 'Nunito_700Bold', color: '#FF8A3D', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
+  senderNameOnMedia: { marginLeft: 6, marginTop: 4 },
   messageText:  { fontSize: 15, fontFamily: 'Nunito_400Regular', color: '#F0F0FA', lineHeight: 21 },
   ownMessageText: { color: '#fff' },
   timestamp:    { fontSize: 10, fontFamily: 'Nunito_400Regular', color: '#7878A0', textAlign: 'right', marginTop: 4 },
@@ -740,6 +822,12 @@ const styles = StyleSheet.create({
     shadowColor: '#FF6B00', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
   },
+  attachButton: { width: 40, height: 44, justifyContent: 'center', alignItems: 'center' },
+  gifButton: {
+    height: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#2E2E40', borderRadius: 10,
+  },
+  gifButtonText: { fontSize: 12, fontFamily: 'Nunito_800ExtraBold', color: '#FF6B00', letterSpacing: 0.5 },
   disabledButton: { opacity: 0.4 },
 
   // Members sheet

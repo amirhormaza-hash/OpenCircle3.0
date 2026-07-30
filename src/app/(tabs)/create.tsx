@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase/client';
 import OpenRing from '../../components/OpenRing';
 import { colors, fonts } from '../../constants/colors';
+import { getFriends, type FriendProfile } from '../../lib/friendsQueries';
+import { createInvitations } from '../../lib/invitesQueries';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import { File } from 'expo-file-system';
@@ -71,6 +73,10 @@ export default function CreateEventScreen(): React.JSX.Element {
   const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
   const [tempTime, setTempTime] = useState<Date>(new Date());
 
+  // Visibility & invites — friends-only events go to ALL of your friends
+  const [visibility, setVisibility] = useState<'public' | 'friends'>('public');
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -92,6 +98,10 @@ export default function CreateEventScreen(): React.JSX.Element {
       }).catch(() => {});
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (user?.id) getFriends(user.id).then(setFriends).catch(() => {});
+  }, [user?.id]);
 
   const fetchSuggestions = useCallback(async (text: string) => {
     if (text.length < 3) { setSuggestions([]); return; }
@@ -273,6 +283,10 @@ export default function CreateEventScreen(): React.JSX.Element {
     }
     if (!user) { Alert.alert('Authentication required', 'You must be logged in to create an event.'); return; }
     if (eventDate < new Date()) { Alert.alert('Invalid date', 'Event date cannot be in the past.'); return; }
+    if (visibility === 'friends' && friends.length === 0) {
+      Alert.alert('No friends yet', 'Add friends from their profile first, or switch to a public event.');
+      return;
+    }
 
     setSaving(true);
     setUploadProgress(null);
@@ -300,7 +314,7 @@ export default function CreateEventScreen(): React.JSX.Element {
         .insert([{
           name: name.trim(), address: address.trim(), description: description.trim(),
           date_time: formatDateTimeForDb(eventDate), number_of_guests: guestCount,
-          profile_id: user.id, category, level, latitude, longitude,
+          profile_id: user.id, category, level, latitude, longitude, visibility,
         }])
         .select()
         .single();
@@ -313,6 +327,14 @@ export default function CreateEventScreen(): React.JSX.Element {
         .insert([{ event_id: createdEvent.id, user_id: user.id, owner: true }]);
 
       if (attendeeError) throw attendeeError;
+
+      // Friends-only: invite all of the user's friends
+      if (visibility === 'friends') {
+        const { error: inviteError } = await createInvitations(
+          createdEvent.id, user.id, friends.map((f) => f.id),
+        );
+        if (inviteError) throw new Error(inviteError);
+      }
 
       if (imageUris.length > 0) {
         const uploadedImages = await uploadEventImages(imageUris);
@@ -460,6 +482,37 @@ export default function CreateEventScreen(): React.JSX.Element {
                 style={styles.input}
               />
             </InputRow>
+          </SectionCard>
+
+          {/* ── Who can join ── */}
+          <SectionCard icon="lock-closed-outline" title="Who can join">
+            <View style={styles.pillGrid}>
+              <TouchableOpacity
+                style={[styles.pill, visibility === 'public' && styles.pillActive]}
+                onPress={() => setVisibility('public')}
+              >
+                <Ionicons name="earth-outline" size={14} color={visibility === 'public' ? '#fff' : '#7878A0'} style={{ marginRight: 5 }} />
+                <Text style={[styles.pillText, visibility === 'public' && styles.pillTextActive]}>Public</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pill, visibility === 'friends' && styles.pillActive]}
+                onPress={() => setVisibility('friends')}
+              >
+                <Ionicons name="people-outline" size={14} color={visibility === 'friends' ? '#fff' : '#7878A0'} style={{ marginRight: 5 }} />
+                <Text style={[styles.pillText, visibility === 'friends' && styles.pillTextActive]}>Friends only</Text>
+              </TouchableOpacity>
+            </View>
+
+            {visibility === 'friends' && (
+              <View style={styles.inviteInfoBox}>
+                <Ionicons name="send-outline" size={16} color="#FF6B00" style={{ marginRight: 8 }} />
+                <Text style={styles.inviteInfoText}>
+                  {friends.length === 0
+                    ? 'You have no friends yet. Add friends from their profile to invite them.'
+                    : `This event will be sent to all your friends (${friends.length}). They can accept or reject.`}
+                </Text>
+              </View>
+            )}
           </SectionCard>
 
           {/* ── Category ── */}
@@ -795,6 +848,23 @@ const styles = StyleSheet.create({
   },
   pillTextActiveLevel: {
     color: '#0F0F13',
+  },
+  inviteInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,107,0,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,0,0.25)',
+  },
+  inviteInfoText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: fonts.body,
+    color: '#C0C0D8',
+    lineHeight: 19,
   },
   imagePickerZone: {
     borderWidth: 2,

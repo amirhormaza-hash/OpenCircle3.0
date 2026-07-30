@@ -194,6 +194,7 @@ export default function Index() {
           position
         )
       `)
+      .eq('visibility', 'public')
       .gte('date_time', eventVisibilityCutoffISO())
       .order('created_at', { ascending: false });
 

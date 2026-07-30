@@ -5,7 +5,7 @@ import { View, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBadge } from "../../context/BadgeContext";
-import { colors, fonts } from "../../constants/colors";
+import { colors } from "../../constants/colors";
 
 export default function Layout() {
     const { myListBadge } = useBadge();
@@ -16,10 +16,9 @@ export default function Layout() {
             headerShown: false,
             tabBarActiveTintColor: colors.ember,
             tabBarInactiveTintColor: colors.mutedDeep,
-            tabBarLabelStyle: {
-                fontSize: 11,
-                fontFamily: fonts.bold,
-                marginBottom: 2,
+            tabBarShowLabel: false,
+            tabBarIconStyle: {
+                marginTop: 2,
             },
             tabBarStyle: {
                 backgroundColor: Platform.OS === 'ios' ? 'rgba(15,15,19,0.88)' : colors.bg,
@@ -27,7 +26,7 @@ export default function Layout() {
                 borderTopColor: '#1E1E2A',
                 elevation: 0,
                 height: 56 + insets.bottom,
-                paddingTop: 6,
+                paddingTop: 8,
                 paddingBottom: Math.max(insets.bottom, 8),
             },
             tabBarBackground: Platform.OS === 'ios' ? () => (
@@ -70,6 +69,8 @@ export default function Layout() {
             <Tabs.Screen name="messages/[eventId]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="messages/dm/[userId]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
             <Tabs.Screen name="edit-event" options={{ href: null }} />
+            <Tabs.Screen name="friends" options={{ href: null }} />
+            <Tabs.Screen name="event-invitees" options={{ href: null }} />
             <Tabs.Screen name="profile-settings" options={{ href: null }} />
             <Tabs.Screen name="user-profile" options={{ href: null }} />
         </Tabs>

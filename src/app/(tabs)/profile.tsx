@@ -38,6 +38,7 @@ import EventHistoryCard from '../../components/EventHistoryCard';
 import OpenRing from '../../components/OpenRing';
 import { BADGE_DEFINITIONS } from '../../constants/badges';
 import { categoryColor, colors, fonts } from '../../constants/colors';
+import { getPendingRequestCount } from '../../lib/friendsQueries';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -122,6 +123,7 @@ export default function ProfileScreen() {
   const [skillLevels, setSkillLevels]       = useState<Record<string, string>>({});
   const [eventHistory, setEventHistory]     = useState<HistoryEvent[]>([]);
   const [repScore, setRepScore]             = useState<number | 'New' | null>(null);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState(false);
 
@@ -218,7 +220,10 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (user?.id) loadData(user.id);
+      if (user?.id) {
+        loadData(user.id);
+        getPendingRequestCount(user.id).then(setPendingRequests).catch(() => {});
+      }
     }, [user?.id])
   );
 
@@ -293,12 +298,21 @@ export default function ProfileScreen() {
           <OpenRing size={20} bg={colors.bg} />
           <Text style={styles.headerLogo}>OpenCircle</Text>
         </View>
-        <TouchableOpacity
-          style={styles.settingsBtn}
-          onPress={() => router.push('/(tabs)/profile-settings')}
-        >
-          <Ionicons name="settings-outline" size={22} color={colors.muted} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/(tabs)/friends')}
+          >
+            <Ionicons name="people-outline" size={22} color={colors.muted} />
+            {pendingRequests > 0 && <View style={styles.headerDot} />}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/(tabs)/profile-settings')}
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -506,6 +520,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.4,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   settingsBtn: {
     width: 40,
     height: 40,
@@ -515,6 +530,17 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.ember,
+    borderWidth: 1.5,
+    borderColor: colors.bg,
   },
 
   scroll: { paddingHorizontal: 16, paddingBottom: 40 },

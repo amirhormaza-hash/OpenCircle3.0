@@ -16,8 +16,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../../lib/supabase/client';
 import { useAuth } from '../../../../context/AuthContext';
+import { uploadChatMedia } from '../../../../lib/supabase/storage';
+import MediaBubble, { type MediaType } from '../../../../components/MediaBubble';
+import GifPicker from '../../../../components/GifPicker';
+import FullScreenImageViewer from '../../../../components/FullScreenImageViewer';
 
 interface DmMessage {
   id: string;
@@ -25,6 +30,8 @@ interface DmMessage {
   sender_id: string;
   content: string;
   created_at: string;
+  media_url?: string | null;
+  media_type?: MediaType | null;
 }
 
 interface Participant {
@@ -52,6 +59,9 @@ export default function DmScreen() {
   const [loading, setLoading]     = useState(true);
   const [text, setText]           = useState('');
   const [sending, setSending]     = useState(false);
+  const [gifPickerVisible, setGifPickerVisible] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   // Members sheet
   const [showMembers, setShowMembers] = useState(false);
@@ -132,7 +142,7 @@ export default function DmScreen() {
     // Load message history
     const { data: msgs } = await supabase
       .from('direct_messages')
-      .select('id, chat_id, sender_id, content, created_at')
+      .select('id, chat_id, sender_id, content, media_url, media_type, created_at')
       .eq('chat_id', resolvedChatId)
       .order('created_at', { ascending: true });
 
@@ -152,6 +162,40 @@ export default function DmScreen() {
       content:   trimmed,
     });
     setSending(false);
+  }
+
+  async function sendMediaMessage(mediaUrl: string, mediaType: MediaType) {
+    if (!chatId || !me) return;
+    await supabase.from('direct_messages').insert({
+      chat_id: chatId, sender_id: me.id, content: '', media_url: mediaUrl, media_type: mediaType,
+    });
+  }
+
+  async function pickAndSendMedia() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to share photos and videos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      quality: 0.8,
+      videoMaxDuration: 60,
+    });
+    if (result.canceled || !result.assets?.[0] || !me) return;
+    setUploadingMedia(true);
+    try {
+      const { url, mediaType } = await uploadChatMedia(me.id, result.assets[0].uri);
+      await sendMediaMessage(url, mediaType);
+    } catch {
+      Alert.alert('Error', 'Could not upload. Try a smaller file.');
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
+
+  function handleGifSelected(gifUrl: string) {
+    sendMediaMessage(gifUrl, 'gif');
   }
 
   function handleReportDmMessage(message: DmMessage) {
@@ -217,14 +261,23 @@ export default function DmScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}
+            style={[
+              styles.bubble,
+              isMe ? styles.bubbleMe : styles.bubbleThem,
+              item.media_type ? styles.mediaBubble : null,
+            ]}
             activeOpacity={0.9}
             onLongPress={!isMe ? () => handleReportDmMessage(item) : undefined}
             delayLongPress={500}
           >
-            <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
-              {item.content}
-            </Text>
+            {item.media_url && item.media_type ? (
+              <MediaBubble url={item.media_url} type={item.media_type} onPressImage={(u) => setFullScreenImage(u)} />
+            ) : null}
+            {item.content ? (
+              <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem, item.media_type ? { marginTop: 6 } : null]}>
+                {item.content}
+              </Text>
+            ) : null}
           </TouchableOpacity>
         </View>
       </View>
@@ -316,6 +369,15 @@ export default function DmScreen() {
         />
 
         <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
+          <TouchableOpacity style={styles.attachButton} onPress={pickAndSendMedia} disabled={uploadingMedia || !chatId}>
+            {uploadingMedia
+              ? <ActivityIndicator size="small" color="#FF6B00" />
+              : <Ionicons name="add-circle-outline" size={26} color="#FF6B00" />
+            }
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.gifButton} onPress={() => setGifPickerVisible(true)} disabled={!chatId}>
+            <Text style={styles.gifButtonText}>GIF</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             value={text}
@@ -338,6 +400,13 @@ export default function DmScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <GifPicker
+        visible={gifPickerVisible}
+        onClose={() => setGifPickerVisible(false)}
+        onSelect={handleGifSelected}
+      />
+      <FullScreenImageViewer uri={fullScreenImage} onClose={() => setFullScreenImage(null)} />
 
       {/* Members Sheet */}
       <Modal visible={showMembers} transparent animationType="slide" onRequestClose={() => setShowMembers(false)}>
@@ -511,6 +580,7 @@ const styles = StyleSheet.create({
   avatar:      { width: 28, height: 28, borderRadius: 14, flexShrink: 0, overflow: 'hidden' },
   avatarFallback: { backgroundColor: '#1E1E28', alignItems: 'center', justifyContent: 'center' },
   bubble:      { maxWidth: '75%', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10 },
+  mediaBubble: { padding: 5 },
   bubbleMe:    { backgroundColor: '#FF6B00', borderBottomRightRadius: 6 },
   bubbleThem:  { backgroundColor: '#1E1E28', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#2E2E40' },
   bubbleText:  { fontSize: 15, fontFamily: 'Nunito_400Regular', lineHeight: 21 },
@@ -531,6 +601,12 @@ const styles = StyleSheet.create({
   },
   sendBtn:        { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FF6B00', alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
+  attachButton: { width: 38, height: 42, justifyContent: 'center', alignItems: 'center' },
+  gifButton: {
+    height: 42, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#2E2E40', borderRadius: 10,
+  },
+  gifButtonText: { fontSize: 12, fontFamily: 'Nunito_800ExtraBold', color: '#FF6B00', letterSpacing: 0.5 },
 
   // Members sheet
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
