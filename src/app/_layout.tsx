@@ -14,6 +14,7 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
+import UpdatePrompt from "@/components/UpdatePrompt";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -74,6 +75,7 @@ export default function RootLayout() {
         </AuthProvider>
       </BadgeProvider>
       <Toast />
+      <UpdatePrompt />
     </GestureHandlerRootView>
   );
 }
