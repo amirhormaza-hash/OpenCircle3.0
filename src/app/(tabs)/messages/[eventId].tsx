@@ -312,12 +312,21 @@ export default function EventChatScreen() {
 
   async function sendMediaMessage(mediaUrl: string, mediaType: MediaType) {
     if (!user || !chatId) { Alert.alert('Send failed', `Missing ${!user ? 'user' : 'chatId'}`); return; }
-    const { error } = await supabase.from('chat_messages').insert({
+    const { data, error } = await supabase.from('chat_messages').insert({
       chat_id: chatId, user_id: user.id, messages: '', media_url: mediaUrl, media_type: mediaType,
-    });
+    })
+      .select('id, chat_id, messages, media_url, media_type, user_id, created_at, profile:profiles!user_id(name, profile_image_url)')
+      .single();
     if (error) {
       console.error('chat_messages media insert error:', error);
       Alert.alert('Send failed (DB insert)', `${error.message}\n\ncode: ${error.code ?? 'none'}\nhint: ${error.hint ?? 'none'}\ndetails: ${error.details ?? 'none'}`);
+      return;
+    }
+    if (data) {
+      // Show it immediately (realtime dedupes by id).
+      const msg = normalizeMessage(data);
+      setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }
 

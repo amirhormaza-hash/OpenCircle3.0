@@ -175,12 +175,20 @@ export default function DmScreen() {
 
   async function sendMediaMessage(mediaUrl: string, mediaType: MediaType) {
     if (!chatId || !me) { Alert.alert('Send failed', `Missing ${!me ? 'user' : 'chatId'}`); return; }
-    const { error } = await supabase.from('direct_messages').insert({
+    const { data, error } = await supabase.from('direct_messages').insert({
       chat_id: chatId, sender_id: me.id, content: '', media_url: mediaUrl, media_type: mediaType,
-    });
+    })
+      .select('id, chat_id, sender_id, content, media_url, media_type, created_at')
+      .single();
     if (error) {
       console.error('direct_messages media insert error:', error);
       Alert.alert('Send failed (DB insert)', `${error.message}\n\ncode: ${error.code ?? 'none'}\nhint: ${error.hint ?? 'none'}\ndetails: ${error.details ?? 'none'}`);
+      return;
+    }
+    if (data) {
+      // Show it immediately (realtime dedupes by id).
+      setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data as DmMessage]);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }
 
