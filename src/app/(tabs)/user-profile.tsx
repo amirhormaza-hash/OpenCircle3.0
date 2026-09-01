@@ -23,6 +23,7 @@ import ReputationTag from '../../components/ReputationTag';
 import StreakCard from '../../components/StreakCard';
 import EventHistoryCard from '../../components/EventHistoryCard';
 import OpenRing from '../../components/OpenRing';
+import ReportBlockSheet from '../../components/ReportBlockSheet';
 import { categoryColor, colors, fonts } from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -120,6 +121,7 @@ export default function UserProfileScreen() {
   const [repScore, setRepScore]             = useState<number | 'New' | null>(null);
   const [loading, setLoading]               = useState(true);
   const [notFound, setNotFound]             = useState(false);
+  const [moderationOpen, setModerationOpen] = useState(false);
 
   // Friend flow
   const [friendState, setFriendState] = useState<FriendState>('none');
@@ -351,7 +353,17 @@ export default function UserProfileScreen() {
           <Ionicons name="chevron-back" size={24} color="#f0f0f5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <View style={{ width: 40 }} />
+        {isOwnProfile ? (
+          <View style={{ width: 40 }} />
+        ) : (
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => setModerationOpen(true)}
+            accessibilityLabel="Report or block this user"
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color="#f0f0f5" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -617,6 +629,17 @@ export default function UserProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      <ReportBlockSheet
+        visible={moderationOpen}
+        target={
+          profile ? { kind: 'user', id: userId as string, name: profile.name, source: 'profile' } : null
+        }
+        onClose={() => setModerationOpen(false)}
+        // Their content is gone from this session the moment the block lands,
+        // so there is nothing left to show on their profile.
+        onBlocked={() => router.back()}
+      />
     </SafeAreaView>
   );
 }

@@ -10,6 +10,13 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview"
+    },
+    "simulator": {
+      "distribution": "internal",
+      "environment": "preview",
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {

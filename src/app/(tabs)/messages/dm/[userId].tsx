@@ -24,6 +24,8 @@ import { uploadChatMedia } from '../../../../lib/supabase/storage';
 import MediaBubble, { type MediaType } from '../../../../components/MediaBubble';
 import GifPicker from '../../../../components/GifPicker';
 import FullScreenImageViewer from '../../../../components/FullScreenImageViewer';
+import ReportBlockSheet, { type ReportTarget } from '../../../../components/ReportBlockSheet';
+import { screenText } from '../../../../lib/contentFilter';
 
 interface DmMessage {
   id: string;
@@ -67,14 +69,8 @@ export default function DmScreen() {
   // Members sheet
   const [showMembers, setShowMembers] = useState(false);
 
-  // Moderation modals
-  const [reportMsgModal, setReportMsgModal] = useState<{
-    visible: boolean; step: 'reasons' | 'confirm'; message: DmMessage | null; reason: string;
-  }>({ visible: false, step: 'reasons', message: null, reason: '' });
-
-  const [reportUserModal, setReportUserModal] = useState<{
-    visible: boolean; step: 'reasons' | 'confirm'; reason: string;
-  }>({ visible: false, step: 'reasons', reason: '' });
+  // Reporting and blocking both run through the shared sheet.
+  const [moderationTarget, setModerationTarget] = useState<ReportTarget | null>(null);
 
   const listRef = useRef<FlatList<DmMessage>>(null);
 
@@ -163,6 +159,14 @@ export default function DmScreen() {
   async function sendMessage() {
     const trimmed = text.trim();
     if (!trimmed || !chatId || !me || sending) return;
+
+    // Guideline 1.2: screen the message before it reaches the recipient.
+    const screened = screenText(trimmed);
+    if (!screened.ok) {
+      Alert.alert('Message not sent', screened.message);
+      return;
+    }
+
     setSending(true);
     setText('');
     await supabase.from('direct_messages').insert({
@@ -221,34 +225,31 @@ export default function DmScreen() {
     sendMediaMessage(gifUrl, 'gif');
   }
 
+  // Long-pressing someone else's message offers reporting it, and blocking
+  // the person who sent it.
   function handleReportDmMessage(message: DmMessage) {
-    setReportMsgModal({ visible: true, step: 'reasons', message, reason: '' });
-  }
-
-  async function submitDmReport() {
-    if (!me || !reportMsgModal.message) return;
-    await supabase.from('message_reports').insert({
-      reporter_id: me.id,
-      message_id:  reportMsgModal.message.id,
-      context:     'dm',
-      reason:      reportMsgModal.reason,
+    setModerationTarget({
+      kind: 'message',
+      id: message.id,
+      context: 'dm',
+      text: message.content,
+      authorId: message.sender_id,
+      authorName: other?.name,
     });
-    setReportMsgModal({ visible: false, step: 'reasons', message: null, reason: '' });
   }
 
   function handleReportUser() {
     setShowMembers(false);
-    setTimeout(() => setReportUserModal({ visible: true, step: 'reasons', reason: '' }), 300);
-  }
-
-  async function submitUserDmReport() {
-    if (!me) return;
-    await supabase.from('user_reports').insert({
-      reporter_id: me.id,
-      reported_id: theirId,
-      reason:      reportUserModal.reason,
-    });
-    setReportUserModal({ visible: false, step: 'reasons', reason: '' });
+    setTimeout(
+      () =>
+        setModerationTarget({
+          kind: 'user',
+          id: theirId,
+          name: other?.name ?? 'this user',
+          source: 'dm',
+        }),
+      300,
+    );
   }
 
   function goToProfile(userId: string) {
@@ -454,7 +455,7 @@ export default function DmScreen() {
                 activeOpacity={0.7}
               >
                 <Ionicons name="flag-outline" size={16} color="#E05A5A" />
-                <Text style={styles.reportUserText}>Report {other.name}</Text>
+                <Text style={styles.reportUserText}>Report or block {other.name}</Text>
               </TouchableOpacity>
             )}
 
@@ -463,119 +464,13 @@ export default function DmScreen() {
         </View>
       </Modal>
 
-      {/* Report Message Modal */}
-      <Modal visible={reportMsgModal.visible} transparent animationType="slide"
-        onRequestClose={() => setReportMsgModal(s => ({ ...s, visible: false }))}>
-        <View style={styles.overlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill}
-            onPress={() => setReportMsgModal(s => ({ ...s, visible: false }))} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.modalHeader}>
-              <TouchableOpacity style={styles.modalBackBtn}
-                onPress={() =>
-                  reportMsgModal.step === 'confirm'
-                    ? setReportMsgModal(s => ({ ...s, step: 'reasons' }))
-                    : setReportMsgModal(s => ({ ...s, visible: false }))}>
-                <Ionicons name={reportMsgModal.step === 'confirm' ? 'chevron-back' : 'close'} size={20} color="#F0F0FA" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>
-                {reportMsgModal.step === 'reasons' ? 'Report Message' : 'Confirm Report'}
-              </Text>
-              <View style={{ width: 36 }} />
-            </View>
-
-            {reportMsgModal.step === 'reasons' ? (
-              <View>
-                <Text style={styles.modalSubtitle}>Why are you reporting this message?</Text>
-                {['Spam', 'Harassment', 'Inappropriate content', 'Other'].map(r => (
-                  <TouchableOpacity key={r} style={styles.reasonRow} activeOpacity={0.75}
-                    onPress={() => setReportMsgModal(s => ({ ...s, reason: r, step: 'confirm' }))}>
-                    <Text style={styles.reasonText}>{r}</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#5A5A78" />
-                  </TouchableOpacity>
-                ))}
-                <View style={{ height: insets.bottom + 16 }} />
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.modalSubtitle}>You're reporting this message for:</Text>
-                <View style={styles.confirmBadge}>
-                  <Text style={styles.confirmBadgeText}>{reportMsgModal.reason}</Text>
-                </View>
-                <Text style={styles.confirmNote}>
-                  Our team will review this and take action if it violates our community guidelines.
-                </Text>
-                <TouchableOpacity style={styles.submitBtn} activeOpacity={0.85} onPress={submitDmReport}>
-                  <Text style={styles.submitBtnText}>Submit Report</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.75}
-                  onPress={() => setReportMsgModal(s => ({ ...s, visible: false }))}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <View style={{ height: insets.bottom + 16 }} />
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Report User Modal */}
-      <Modal visible={reportUserModal.visible} transparent animationType="slide"
-        onRequestClose={() => setReportUserModal(s => ({ ...s, visible: false }))}>
-        <View style={styles.overlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill}
-            onPress={() => setReportUserModal(s => ({ ...s, visible: false }))} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.modalHeader}>
-              <TouchableOpacity style={styles.modalBackBtn}
-                onPress={() =>
-                  reportUserModal.step === 'confirm'
-                    ? setReportUserModal(s => ({ ...s, step: 'reasons' }))
-                    : setReportUserModal(s => ({ ...s, visible: false }))}>
-                <Ionicons name={reportUserModal.step === 'confirm' ? 'chevron-back' : 'close'} size={20} color="#F0F0FA" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>
-                {reportUserModal.step === 'reasons' ? `Report ${other?.name ?? 'User'}` : 'Confirm Report'}
-              </Text>
-              <View style={{ width: 36 }} />
-            </View>
-
-            {reportUserModal.step === 'reasons' ? (
-              <View>
-                <Text style={styles.modalSubtitle}>Why are you reporting this user?</Text>
-                {['Harassment', 'Spam', 'Inappropriate behavior', 'Other'].map(r => (
-                  <TouchableOpacity key={r} style={styles.reasonRow} activeOpacity={0.75}
-                    onPress={() => setReportUserModal(s => ({ ...s, reason: r, step: 'confirm' }))}>
-                    <Text style={styles.reasonText}>{r}</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#5A5A78" />
-                  </TouchableOpacity>
-                ))}
-                <View style={{ height: insets.bottom + 16 }} />
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.modalSubtitle}>You are reporting {other?.name} for:</Text>
-                <View style={styles.confirmBadge}>
-                  <Text style={styles.confirmBadgeText}>{reportUserModal.reason}</Text>
-                </View>
-                <Text style={styles.confirmNote}>
-                  Our team will review this and take action if guidelines are violated.
-                </Text>
-                <TouchableOpacity style={styles.submitBtn} activeOpacity={0.85} onPress={submitUserDmReport}>
-                  <Text style={styles.submitBtnText}>Submit Report</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.75}
-                  onPress={() => setReportUserModal(s => ({ ...s, visible: false }))}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <View style={{ height: insets.bottom + 16 }} />
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <ReportBlockSheet
+        visible={moderationTarget !== null}
+        target={moderationTarget}
+        onClose={() => setModerationTarget(null)}
+        // RLS drops the thread once the block lands, so leave the screen.
+        onBlocked={() => router.back()}
+      />
     </SafeAreaView>
   );
 }

@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   needsPasswordReset: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, termsVersion?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   signOut: () => Promise<void>;
@@ -126,9 +126,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+  // termsVersion records which version of the EULA the user ticked at sign-up
+  // (App Store Guideline 1.2). It goes into auth metadata, which is written
+  // atomically with the account, and is then mirrored onto the profile row —
+  // that row is created by a trigger, so it may not exist for a moment yet.
+  const signUp = async (email: string, password: string, termsVersion?: string) => {
+    const acceptedAt = new Date().toISOString();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: termsVersion
+        ? { data: { terms_accepted_at: acceptedAt, terms_accepted_version: termsVersion } }
+        : undefined,
+    });
     if (error) throw error;
+
+    if (data.user && termsVersion) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          terms_accepted_at: acceptedAt,
+          terms_accepted_version: termsVersion,
+        })
+        .eq("id", data.user.id);
+      // Non-fatal: auth metadata already holds the durable record.
+      if (profileError) {
+        console.error("Could not stamp terms acceptance on profile:", profileError);
+      }
+    }
+
     if (data.user) {
       setUser({
         id: data.user.id,

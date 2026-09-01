@@ -28,6 +28,9 @@ import { uploadChatMedia } from '../../../lib/supabase/storage';
 import MediaBubble, { type MediaType } from '../../../components/MediaBubble';
 import GifPicker from '../../../components/GifPicker';
 import FullScreenImageViewer from '../../../components/FullScreenImageViewer';
+import ReportBlockSheet, { type ReportTarget } from '../../../components/ReportBlockSheet';
+import { fetchBlockedIds, reportUser } from '../../../lib/moderationQueries';
+import { screenText } from '../../../lib/contentFilter';
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   sports:     require('../../../../assets/images/sports.jpg'),
@@ -113,10 +116,10 @@ export default function EventChatScreen() {
   const [members, setMembers]             = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
 
-  // Moderation modals
-  const [reportMsgModal, setReportMsgModal] = useState<{
-    visible: boolean; step: 'reasons' | 'confirm'; message: Message | null; reason: string;
-  }>({ visible: false, step: 'reasons', message: null, reason: '' });
+  // Reporting a message, and blocking anyone, run through the shared sheet.
+  // The member modal below stays separate because kicking is a host power
+  // that has nothing to do with reporting.
+  const [moderationTarget, setModerationTarget] = useState<ReportTarget | null>(null);
 
   const [memberModal, setMemberModal] = useState<{
     visible: boolean;
@@ -278,9 +281,14 @@ export default function EventChatScreen() {
       .select('profiles!user_id(id, name, username, profile_image_url)')
       .eq('event_id', eventId);
 
+    // profiles is readable by every signed-in user, so blocked attendees have
+    // to be dropped here — unlike their messages, which RLS already hides.
+    const blockedIds = await fetchBlockedIds();
+
     const list: Member[] = (data ?? [])
       .map((r: any) => r.profiles)
       .filter(Boolean)
+      .filter((p: any) => !blockedIds.has(p.id))
       .map((p: any) => ({ id: p.id, name: p.name, username: p.username, profile_image_url: p.profile_image_url ?? null }));
 
     setMembers(list);
@@ -299,6 +307,14 @@ export default function EventChatScreen() {
 
   async function sendMessage() {
     if (!newMessage.trim() || !user || !chatId) return;
+
+    // Guideline 1.2: screen the message before it reaches the other attendees.
+    const screened = screenText(newMessage);
+    if (!screened.ok) {
+      Alert.alert('Message not sent', screened.message);
+      return;
+    }
+
     setSending(true);
     const { error } = await supabase.from('chat_messages').insert({
       chat_id:  chatId,
@@ -362,18 +378,23 @@ export default function EventChatScreen() {
   // ── Message reporting ────────────────────────────────────────────────────────
 
   function handleReportMessage(message: Message) {
-    setReportMsgModal({ visible: true, step: 'reasons', message, reason: '' });
+    setModerationTarget({
+      kind: 'message',
+      id: message.id,
+      context: 'event_chat',
+      text: message.messages,
+      authorId: message.user_id,
+      authorName: message.profile?.name,
+    });
   }
 
-  async function submitMessageReport() {
-    if (!user || !reportMsgModal.message) return;
-    await supabase.from('message_reports').insert({
-      reporter_id: user.id,
-      message_id:  reportMsgModal.message.id,
-      context:     'event_chat',
-      reason:      reportMsgModal.reason,
-    });
-    setReportMsgModal({ visible: false, step: 'reasons', message: null, reason: '' });
+  /** Block a member from the members sheet, via the shared report/block flow. */
+  function handleBlockMember(member: Member) {
+    setMemberModal(s => ({ ...s, visible: false }));
+    setTimeout(
+      () => setModerationTarget({ kind: 'user', id: member.id, name: member.name, eventId, source: 'event_chat' }),
+      300,
+    );
   }
 
   // ── Member moderation (event owner only) ─────────────────────────────────────
@@ -398,12 +419,23 @@ export default function EventChatScreen() {
       await kickMember(memberModal.member.id);
     }
     if (memberModal.action === 'report' || memberModal.action === 'kickAndReport') {
-      await supabase.from('user_reports').insert({
-        reporter_id: user.id,
-        reported_id: memberModal.member.id,
-        event_id:    eventId,
-        reason:      memberModal.reason,
+      const { error } = await reportUser(memberModal.member.id, memberModal.reason, {
+        eventId,
+        source: 'event_chat_member',
       });
+      setMemberModal({ visible: false, step: 'actions', member: null, action: null, reason: '' });
+
+      // This insert used to be fire-and-forget, so a failed report looked
+      // identical to a successful one. Confirm it either way.
+      if (error) {
+        Alert.alert('Report not sent', 'Something went wrong. Please try again.');
+      } else {
+        Alert.alert(
+          'Report received',
+          'Thanks for letting us know. Our team reviews every report within 24 hours and removes content that breaks our rules.',
+        );
+      }
+      return;
     }
     setMemberModal({ visible: false, step: 'actions', member: null, action: null, reason: '' });
   }
@@ -618,62 +650,7 @@ export default function EventChatScreen() {
         </View>
       </Modal>
 
-      {/* Report Message Modal */}
-      <Modal visible={reportMsgModal.visible} transparent animationType="slide"
-        onRequestClose={() => setReportMsgModal(s => ({ ...s, visible: false }))}>
-        <View style={styles.overlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill}
-            onPress={() => setReportMsgModal(s => ({ ...s, visible: false }))} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.modalHeader}>
-              <TouchableOpacity style={styles.modalBackBtn}
-                onPress={() =>
-                  reportMsgModal.step === 'confirm'
-                    ? setReportMsgModal(s => ({ ...s, step: 'reasons' }))
-                    : setReportMsgModal(s => ({ ...s, visible: false }))}>
-                <Ionicons name={reportMsgModal.step === 'confirm' ? 'chevron-back' : 'close'} size={20} color="#F0F0FA" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>
-                {reportMsgModal.step === 'reasons' ? 'Report Message' : 'Confirm Report'}
-              </Text>
-              <View style={{ width: 36 }} />
-            </View>
 
-            {reportMsgModal.step === 'reasons' ? (
-              <View>
-                <Text style={styles.modalSubtitle}>Why are you reporting this message?</Text>
-                {['Spam', 'Harassment', 'Inappropriate content', 'Other'].map(r => (
-                  <TouchableOpacity key={r} style={styles.reasonRow} activeOpacity={0.75}
-                    onPress={() => setReportMsgModal(s => ({ ...s, reason: r, step: 'confirm' }))}>
-                    <Text style={styles.reasonText}>{r}</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#5A5A78" />
-                  </TouchableOpacity>
-                ))}
-                <View style={{ height: insets.bottom + 16 }} />
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.modalSubtitle}>You're reporting this message for:</Text>
-                <View style={styles.confirmBadge}>
-                  <Text style={styles.confirmBadgeText}>{reportMsgModal.reason}</Text>
-                </View>
-                <Text style={styles.confirmNote}>
-                  Our team will review this and take action if it violates our community guidelines.
-                </Text>
-                <TouchableOpacity style={styles.submitBtn} activeOpacity={0.85} onPress={submitMessageReport}>
-                  <Text style={styles.submitBtnText}>Submit Report</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.75}
-                  onPress={() => setReportMsgModal(s => ({ ...s, visible: false }))}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <View style={{ height: insets.bottom + 16 }} />
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
 
       {/* Member Action Modal */}
       <Modal visible={memberModal.visible} transparent animationType="slide"
@@ -721,6 +698,12 @@ export default function EventChatScreen() {
                   onPress={() => setMemberModal(s => ({ ...s, action: 'kickAndReport', step: 'reasons' }))}>
                   <Ionicons name="ban-outline" size={18} color="#FF4D4D" />
                   <Text style={[styles.reasonText, styles.destructiveText]}>Kick & Report</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#FF4D4D" />
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.reasonRow, styles.destructiveRow]} activeOpacity={0.75}
+                  onPress={() => memberModal.member && handleBlockMember(memberModal.member)}>
+                  <Ionicons name="hand-left-outline" size={18} color="#FF4D4D" />
+                  <Text style={[styles.reasonText, styles.destructiveText]}>Block user</Text>
                   <Ionicons name="chevron-forward" size={16} color="#FF4D4D" />
                 </TouchableOpacity>
                 <View style={{ height: insets.bottom + 16 }} />
@@ -777,6 +760,18 @@ export default function EventChatScreen() {
           </View>
         </View>
       </Modal>
+
+      <ReportBlockSheet
+        visible={moderationTarget !== null}
+        target={moderationTarget}
+        onClose={() => setModerationTarget(null)}
+        // A blocked member's messages stop being returned, so drop them from
+        // the list already on screen too.
+        onBlocked={(blockedId) => {
+          setMessages(prev => prev.filter(m => m.user_id !== blockedId));
+          setMembers(prev => prev.filter(m => m.id !== blockedId));
+        }}
+      />
     </SafeAreaView>
   );
 }

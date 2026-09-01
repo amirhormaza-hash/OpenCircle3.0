@@ -28,6 +28,7 @@ import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { screenFields } from '../../lib/contentFilter';
 
 const CATEGORY_OPTIONS = [
   'Sports', 'Party', 'Food', 'Study', 'Networking', 'Ride', 'Outdoors', 'Zen', 'Other',
@@ -283,6 +284,13 @@ export default function CreateEventScreen(): React.JSX.Element {
     }
     if (!user) { Alert.alert('Authentication required', 'You must be logged in to create an event.'); return; }
     if (eventDate < new Date()) { Alert.alert('Invalid date', 'Event date cannot be in the past.'); return; }
+
+    // Guideline 1.2: objectionable material is filtered before it is posted.
+    const screened = screenFields({ name, description, address });
+    if (!screened.ok) {
+      Alert.alert('Content not allowed', screened.message);
+      return;
+    }
     if (visibility === 'friends' && friends.length === 0) {
       Alert.alert('No friends yet', 'Add friends from their profile first, or switch to a public event.');
       return;

@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../constants/colors';
+import { useAuth } from '../context/AuthContext';
+import ReportBlockSheet, { type ReportTarget } from './ReportBlockSheet';
 
 export type ModalEventItem = {
   id: string;
@@ -58,11 +60,18 @@ export default function EventDetailsModal({
   onOwnerPress,
 }: Props) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [moderationTarget, setModerationTarget] = useState<ReportTarget | null>(null);
+  const { user } = useAuth();
 
   // Reset gallery index each time a new event is opened
   useEffect(() => {
     if (visible) setSelectedImageIndex(0);
   }, [visible, event?.id]);
+
+  // An event's name and description are user-generated, so they need their own
+  // report path (Guideline 1.2). No point offering it on your own event.
+  const eventOwnerId = event?.owner_profile_id ?? event?.profile_id ?? null;
+  const canReport = !!event && !!user && eventOwnerId !== user.id;
 
   const imageUrls = event?.image_urls ?? [];
   const currentImage = imageUrls.length > 0 ? imageUrls[selectedImageIndex] : null;
@@ -247,6 +256,18 @@ export default function EventDetailsModal({
               <Text style={styles.description}>{event?.description || 'No description provided'}</Text>
             </View>
 
+            {canReport && (
+              <Pressable
+                style={styles.reportRow}
+                onPress={() =>
+                  setModerationTarget({ kind: 'event', id: event.id, name: event.name })
+                }
+              >
+                <Ionicons name="flag-outline" size={15} color="#E05A5A" />
+                <Text style={styles.reportText}>Report this event</Text>
+              </Pressable>
+            )}
+
             {/* Close + screen-specific action buttons */}
             <View style={styles.buttonRow}>
               <Pressable style={styles.closeButton} onPress={onClose}>
@@ -257,6 +278,12 @@ export default function EventDetailsModal({
           </ScrollView>
         </View>
       </View>
+
+      <ReportBlockSheet
+        visible={moderationTarget !== null}
+        target={moderationTarget}
+        onClose={() => setModerationTarget(null)}
+      />
     </Modal>
   );
 }
@@ -462,6 +489,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: '#C0C0D8',
     lineHeight: 22,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 12,
+    marginBottom: 4,
+  },
+  reportText: {
+    fontSize: 13.5,
+    color: '#E05A5A',
+    fontFamily: fonts.body,
   },
   buttonRow: {
     flexDirection: 'row',

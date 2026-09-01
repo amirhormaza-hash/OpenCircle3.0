@@ -7,6 +7,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import AuthBrandHeader from "@/components/AuthBrandHeader";
 import AuthInputField from "@/components/AuthInputField";
+import { TermsNotice } from "@/components/AuthTermsGate";
 
 function friendlyLoginError(message: string): string {
   if (message.includes("Invalid login credentials"))
@@ -55,10 +57,15 @@ export default function LoginScreen() {
     <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
           <AuthBrandHeader accentColor="#FF6B00" tagline="Discover events around you" />
 
           <View style={styles.card}>
@@ -127,9 +134,11 @@ export default function LoginScreen() {
                   <Text style={styles.linkButtonTextBold}>Sign Up</Text>
                 </Text>
               </TouchableOpacity>
+
+              <TermsNotice />
             </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -141,10 +150,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0F0F13",
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: "#1A1A24",

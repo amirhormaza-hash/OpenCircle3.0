@@ -16,6 +16,7 @@ import { uploadProfileImage } from "@/lib/supabase/storage";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { screenFields } from "@/lib/contentFilter";
 
 export default function OnboardingScreen() {
   const [name, setName] = useState("");
@@ -82,6 +83,13 @@ export default function OnboardingScreen() {
 
     if (username.length < 3) {
       Alert.alert("Error", "Username must be at least 3 characters");
+      return;
+    }
+
+    // The name and username are public from this point on (Guideline 1.2).
+    const screened = screenFields({ name, username });
+    if (!screened.ok) {
+      Alert.alert("Content not allowed", screened.message);
       return;
     }
 

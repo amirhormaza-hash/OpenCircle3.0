@@ -23,6 +23,7 @@ import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import { screenFields } from '../../lib/contentFilter';
 
 const MAX_IMAGES = 6;
 type ExistingImage = { id: string; path: string; url: string; position: number };
@@ -211,6 +212,13 @@ export default function EditEventScreen(): React.JSX.Element {
     const guestCount = Number(numberOfGuests);
     if (!numberOfGuests.trim() || Number.isNaN(guestCount) || guestCount <= 0) {
       Alert.alert('Invalid guests', 'Please enter a valid number of guests.');
+      return;
+    }
+
+    // Editing is a posting path too — screen it the same way create does.
+    const screened = screenFields({ name, description, address });
+    if (!screened.ok) {
+      Alert.alert('Content not allowed', screened.message);
       return;
     }
 

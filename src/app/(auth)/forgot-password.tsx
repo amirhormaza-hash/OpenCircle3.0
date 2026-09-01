@@ -7,6 +7,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,30 +18,38 @@ import AuthInputField from "@/components/AuthInputField";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function friendlyResetError(message: string): string {
+  if (message.includes("Too many requests") || message.includes("rate limit"))
+    return "Too many reset attempts. Please wait a few minutes and try again.";
+  if (message.includes("invalid") && message.includes("email"))
+    return "Please enter a valid email address.";
+  return "Something went wrong. Please try again.";
+}
+
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { resetPassword } = useAuth();
   const router = useRouter();
 
   const handleSend = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed) {
-      Alert.alert("Email required", "Please enter your email address.");
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      Alert.alert("Missing email", "Please enter your email address.");
       return;
     }
-    if (!EMAIL_RE.test(trimmed)) {
+    if (!EMAIL_RE.test(trimmedEmail)) {
       Alert.alert("Invalid email", "Please enter a valid email address.");
       return;
     }
+
     setIsLoading(true);
     try {
-      await resetPassword(trimmed);
+      await resetPassword(trimmedEmail);
       setSent(true);
-    } catch {
-      // Don't reveal whether an account exists — always show success
-      setSent(true);
+    } catch (error: any) {
+      Alert.alert("Couldn't Send Link", friendlyResetError(error?.message ?? ""));
     } finally {
       setIsLoading(false);
     }
@@ -54,9 +63,15 @@ export default function ForgotPasswordScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
           {sent ? (
             /* ── Success state ── */
             <View style={styles.card}>
@@ -122,7 +137,7 @@ export default function ForgotPasswordScreen() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -148,10 +163,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
+    paddingTop: 80,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: "#1A1A24",

@@ -16,6 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AuthBrandHeader from "@/components/AuthBrandHeader";
 import AuthInputField from "@/components/AuthInputField";
+import { TermsCheckbox } from "@/components/AuthTermsGate";
+import { TERMS_VERSION } from "@/constants/legal";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -50,6 +52,7 @@ export default function SignUpScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const router = useRouter();
   const { signUp } = useAuth();
@@ -75,10 +78,17 @@ export default function SignUpScreen() {
       Alert.alert("Passwords don't match", "Please make sure both passwords are the same.");
       return;
     }
+    if (!acceptedTerms) {
+      Alert.alert(
+        "Agreement required",
+        "Please read and agree to the Terms of Service and Privacy Policy to create an account.",
+      );
+      return;
+    }
 
     setIsLoading(true);
     try {
-      await signUp(trimmedEmail, password);
+      await signUp(trimmedEmail, password, TERMS_VERSION);
       router.replace("/(auth)/onboarding");
     } catch (error: any) {
       Alert.alert("Sign Up Failed", friendlySignUpError(error?.message ?? ""));
@@ -95,13 +105,14 @@ export default function SignUpScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           <AuthBrandHeader accentColor="#FF6B00" tagline="Join the community" />
 
@@ -186,10 +197,18 @@ export default function SignUpScreen() {
                 <Text style={styles.mismatch}>Passwords don't match</Text>
               )}
 
+              <TermsCheckbox
+                checked={acceptedTerms}
+                onToggle={() => setAcceptedTerms((v) => !v)}
+              />
+
               <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[
+                  styles.button,
+                  (isLoading || !acceptedTerms) && styles.buttonDisabled,
+                ]}
                 onPress={handleSignUp}
-                disabled={isLoading}
+                disabled={isLoading || !acceptedTerms}
               >
                 {isLoading ? (
                   <ActivityIndicator size={24} color="#fff" />
@@ -240,6 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
     paddingTop: 80,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: "#1A1A24",

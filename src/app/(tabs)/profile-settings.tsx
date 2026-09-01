@@ -22,6 +22,8 @@ import { uploadProfileImage } from "@/lib/supabase/storage";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import SettingRow from "@/components/SettingRow";
+import BlockedUsersModal from "@/components/BlockedUsersModal";
+import { screenFields } from "@/lib/contentFilter";
 import { supabase } from "@/lib/supabase/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
@@ -79,6 +81,15 @@ function EditProfileModal({
       Alert.alert("Error", "Username must be at least 3 characters.");
       return;
     }
+
+    // Names, usernames and bios are public, so they are screened like any
+    // other user-generated content (Guideline 1.2).
+    const screened = screenFields({ name, username, bio, location });
+    if (!screened.ok) {
+      Alert.alert("Content not allowed", screened.message);
+      return;
+    }
+
     setSaving(true);
     try {
       const { data: existing } = await supabase
@@ -371,9 +382,11 @@ function PrivacyItem({
 function PrivacyModal({
   visible,
   onClose,
+  onOpenBlocked,
 }: {
   visible: boolean;
   onClose: () => void;
+  onOpenBlocked: () => void;
 }) {
   return (
     <Modal
@@ -430,16 +443,12 @@ function PrivacyModal({
           <View style={modal.card}>
             <TouchableOpacity
               style={modal.linkRow}
-              onPress={() =>
-                Linking.openURL(
-                  "mailto:support@opencircle.app?subject=Block%20User%20Request"
-                )
-              }
+              onPress={onOpenBlocked}
               activeOpacity={0.75}
             >
               <Ionicons name="ban-outline" size={18} color="#EF4444" />
               <Text style={[modal.linkRowText, { color: "#EF4444" }]}>
-                Report or Block a User
+                Blocked Users
               </Text>
               <Ionicons name="chevron-forward" size={14} color="#3A3A55" />
             </TouchableOpacity>
@@ -689,6 +698,7 @@ export default function ProfileSettings() {
   const [editProfileVisible, setEditProfileVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [blockedVisible, setBlockedVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const router = useRouter();
@@ -817,9 +827,19 @@ export default function ProfileSettings() {
         visible={notificationsVisible}
         onClose={() => setNotificationsVisible(false)}
       />
+      <BlockedUsersModal
+        visible={blockedVisible}
+        onClose={() => setBlockedVisible(false)}
+      />
+
       <PrivacyModal
         visible={privacyVisible}
         onClose={() => setPrivacyVisible(false)}
+        // Close Privacy first — iOS will not stack two pageSheet modals.
+        onOpenBlocked={() => {
+          setPrivacyVisible(false);
+          setTimeout(() => setBlockedVisible(true), 350);
+        }}
       />
       <HelpModal
         visible={helpVisible}
@@ -901,6 +921,13 @@ export default function ProfileSettings() {
                 label="Privacy"
                 iconColor="#22C55E"
                 onPress={() => setPrivacyVisible(true)}
+              />
+              <View style={styles.divider} />
+              <SettingRow
+                icon="ban-outline"
+                label="Blocked Users"
+                iconColor="#EF4444"
+                onPress={() => setBlockedVisible(true)}
               />
             </View>
           </View>
