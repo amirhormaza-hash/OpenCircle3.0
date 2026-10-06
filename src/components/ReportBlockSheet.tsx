@@ -92,15 +92,23 @@ export default function ReportBlockSheet({
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset to the top of the flow each time the sheet is opened.
+  // Reset to the top of the flow each time the sheet is opened for a new
+  // target.
+  //
+  // These two deps must stay primitive. `blockable` and `target` are both
+  // rebuilt on every render — the host screens construct `target` inline —
+  // so depending on either re-runs this effect after every state change and
+  // snaps the sheet back to its first step, making it impossible to submit.
+  const canBlock = blockable !== null;
+  const targetKey = target ? `${target.kind}:${target.id}` : null;
+
   useEffect(() => {
-    if (visible) {
-      setStep(blockable ? 'action' : 'reasons');
-      setIntent('report');
-      setReason('');
-      setSubmitting(false);
-    }
-  }, [visible, blockable]);
+    if (!visible) return;
+    setStep(canBlock ? 'action' : 'reasons');
+    setIntent('report');
+    setReason('');
+    setSubmitting(false);
+  }, [visible, canBlock, targetKey]);
 
   function goBack() {
     if (step === 'confirm') setStep('reasons');
