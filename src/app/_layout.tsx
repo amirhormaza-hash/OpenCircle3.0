@@ -19,7 +19,7 @@ import UpdatePrompt from "@/components/UpdatePrompt";
 SplashScreen.preventAutoHideAsync();
 
 function AppNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { user, isLoading, needsPasswordReset } = useAuth();
+  const { user, isLoading, needsPasswordReset, banStatus } = useAuth();
   const router = useRouter();
   const hasNavigated = useRef(false);
 
@@ -34,14 +34,24 @@ function AppNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     SplashScreen.hideAsync();
     hasNavigated.current = true;
 
-    if (user?.onboardingCompleted) {
+    if (banStatus) {
+      router.replace("/(auth)/banned");
+    } else if (user?.onboardingCompleted) {
       router.replace("/(tabs)");
     } else if (user) {
       router.replace("/(auth)/onboarding");
     } else {
       router.replace("/(auth)/login");
     }
-  }, [fontsLoaded, isLoading, user]);
+  }, [fontsLoaded, isLoading, user, banStatus]);
+
+  // A ban can also land mid-session — the fifth block against an account
+  // takes effect immediately, so route out of the tabs when that happens.
+  useEffect(() => {
+    if (banStatus && fontsLoaded && !isLoading) {
+      router.replace("/(auth)/banned");
+    }
+  }, [banStatus, fontsLoaded, isLoading]);
 
   // Route to reset-password whenever Supabase fires PASSWORD_RECOVERY
   useEffect(() => {

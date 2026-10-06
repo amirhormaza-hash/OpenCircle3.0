@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { BanStatus, fetchBanStatus } from "@/lib/moderationQueries";
 
 export interface User {
   id: string;
@@ -20,6 +21,9 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   needsPasswordReset: boolean;
+  /** Set when the signed-in account is banned (migration 017). */
+  banStatus: BanStatus | null;
+  refreshBanStatus: () => Promise<void>;
   signUp: (email: string, password: string, termsVersion?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -35,6 +39,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsPasswordReset, setNeedsPasswordReset] = useState(false);
+  const [banStatus, setBanStatus] = useState<BanStatus | null>(null);
+
+  // Read on every session load and after sign-in, so a ban applied while the
+  // user was away takes effect the next time the app opens.
+  const loadBanStatus = async (userId: string) => {
+    const status = await fetchBanStatus(userId);
+    setBanStatus(status?.isBanned ? status : null);
+  };
+
+  const refreshBanStatus = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) await loadBanStatus(data.user.id);
+  };
 
   useEffect(() => {
     checkSession();
@@ -57,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setBanStatus(null);
   };
 
   const checkSession = async () => {
@@ -69,8 +87,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         const profile = await fetchUserProfile(session.user.id);
         setUser(profile);
+        await loadBanStatus(session.user.id);
       } else {
         setUser(null);
+        setBanStatus(null);
       }
     } catch (error) {
       console.error("Error checking session:", error);
@@ -123,6 +143,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.user) {
       const profile = await fetchUserProfile(data.user.id);
       setUser(profile);
+      // A banned account still signs in — the app routes it to the appeal
+      // screen rather than the tabs.
+      await loadBanStatus(data.user.id);
     }
   };
 
@@ -215,6 +238,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         isLoading,
         needsPasswordReset,
+        banStatus,
+        refreshBanStatus,
         signUp,
         signIn,
         updateUser,

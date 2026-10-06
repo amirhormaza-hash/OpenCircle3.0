@@ -94,6 +94,52 @@ export async function isUserBlocked(userId: string): Promise<boolean> {
   return !!data;
 }
 
+export type AppealStatus = 'none' | 'pending' | 'approved' | 'denied';
+
+export type BanStatus = {
+  isBanned: boolean;
+  bannedAt: string | null;
+  reason: string | null;
+  /** When the 72-hour appeal window closes. After this the account is deleted. */
+  appealDeadline: string | null;
+  appealStatus: AppealStatus;
+  appealText: string | null;
+};
+
+/**
+ * Read the signed-in user's ban state.
+ *
+ * A banned account can still read its own profile row — that is deliberate,
+ * and it is what lets the appeal screen work (migration 017).
+ */
+export async function fetchBanStatus(userId: string): Promise<BanStatus | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_permanently_banned, banned_at, ban_reason, appeal_deadline, appeal_status, appeal_text')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    isBanned: !!data.is_permanently_banned,
+    bannedAt: data.banned_at ?? null,
+    reason: data.ban_reason ?? null,
+    appealDeadline: data.appeal_deadline ?? null,
+    appealStatus: (data.appeal_status ?? 'none') as AppealStatus,
+    appealText: data.appeal_text ?? null,
+  };
+}
+
+/**
+ * Appeal a ban. The server rejects this after the 72-hour window closes, or
+ * if an appeal was already submitted, so the client cannot get it wrong.
+ */
+export async function submitAppeal(text: string): Promise<Result> {
+  const { error } = await supabase.rpc('submit_appeal', { p_text: text.trim() });
+  return { error: error?.message ?? null };
+}
+
 /** Report a user. `source` records which screen the report came from. */
 export async function reportUser(
   reportedId: string,

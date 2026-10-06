@@ -29,6 +29,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { screenFields } from '../../lib/contentFilter';
+import { canHostEvents } from '../../lib/behaviorScore';
+import { fetchBehaviorProfile } from '../../lib/profileQueries';
 
 const CATEGORY_OPTIONS = [
   'Sports', 'Party', 'Food', 'Study', 'Networking', 'Ride', 'Outdoors', 'Zen', 'Other',
@@ -290,6 +292,17 @@ export default function CreateEventScreen(): React.JSX.Element {
     if (!screened.ok) {
       Alert.alert('Content not allowed', screened.message);
       return;
+    }
+
+    // Hosting requires a behavior score of 900+. The database enforces this
+    // too (migration 018) — checking here just lets us say why.
+    const behavior = await fetchBehaviorProfile(user.id);
+    if (behavior) {
+      const gate = canHostEvents(behavior.behavior_score ?? 1000);
+      if (!gate.allowed) {
+        Alert.alert('You cannot create events right now', gate.message ?? '');
+        return;
+      }
     }
     if (visibility === 'friends' && friends.length === 0) {
       Alert.alert('No friends yet', 'Add friends from their profile first, or switch to a public event.');

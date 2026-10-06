@@ -11,7 +11,7 @@ export const PRIVACY_URL = `${DOCS_BASE}/privacy.html`;
 export const SUPPORT_URL = `${DOCS_BASE}/support.html`;
 
 /** Matches the effective date at the top of docs/terms.html. */
-export const TERMS_VERSION = '2026-08-27';
+export const TERMS_VERSION = '2026-09-02';
 
 /** Published contact address, required by App Store Guideline 1.2. */
 export const SUPPORT_EMAIL = 'amirhormaza@gmail.com';

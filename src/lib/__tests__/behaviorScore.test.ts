@@ -3,6 +3,8 @@ import {
   checkNewUserProtection,
   applyDelta,
   isProtectionExpired,
+  canHostEvents,
+  canJoinEvents,
   POINT_VALUES,
   INAPPROPRIATE_ACTIONS,
 } from '../behaviorScore';
@@ -306,4 +308,66 @@ describe('score simulation', () => {
   it('host_event_above_4_5star (+35) adds more than host_event_above_4star (+20)', () => {
     expect(POINT_VALUES.host_event_above_4_5star).toBeGreaterThan(POINT_VALUES.host_event_above_4star);
   });
+});
+
+// ── Gating (migration 018) ────────────────────────────────────────────────────
+
+describe('canHostEvents', () => {
+  it('allows Casual and above', () => {
+    expect(canHostEvents(900).allowed).toBe(true);
+    expect(canHostEvents(1000).allowed).toBe(true);
+    expect(canHostEvents(1500).allowed).toBe(true);
+  });
+
+  it('blocks Flagged users one point below the bar', () => {
+    const result = canHostEvents(899);
+    expect(result.allowed).toBe(false);
+    expect(result.pointsNeeded).toBe(1);
+  });
+
+  it('reports how many points are still needed', () => {
+    expect(canHostEvents(850).pointsNeeded).toBe(50);
+    expect(canHostEvents(600).pointsNeeded).toBe(300);
+  });
+
+  it('explains the score and the bar without blaming the user', () => {
+    const message = canHostEvents(850).message ?? '';
+    expect(message).toContain('850');
+    expect(message).toContain('900');
+    expect(message).toContain('earn points back');
+  });
+
+  it('reports no message when allowed', () => {
+    expect(canHostEvents(1000).message).toBeNull();
+    expect(canHostEvents(1000).pointsNeeded).toBe(0);
+  });
+});
+
+describe('canJoinEvents', () => {
+  it('allows Flagged and above', () => {
+    expect(canJoinEvents(800).allowed).toBe(true);
+    expect(canJoinEvents(850).allowed).toBe(true);
+  });
+
+  it('blocks Restricted users', () => {
+    expect(canJoinEvents(799).allowed).toBe(false);
+    expect(canJoinEvents(500).allowed).toBe(false);
+  });
+
+  it('reports how many points are still needed', () => {
+    expect(canJoinEvents(700).pointsNeeded).toBe(100);
+  });
+});
+
+describe('gating agrees with getTrustTier', () => {
+  // The two must never drift: getTrustTier drives the badge a user sees,
+  // canHost/canJoin drive what they can actually do.
+  it.each([1500, 1200, 1000, 900, 899, 850, 800, 799, 600, 500, 0])(
+    'matches canHost/canJoin at score %i',
+    (score) => {
+      const tier = getTrustTier(score);
+      expect(canHostEvents(score).allowed).toBe(tier.canHost);
+      expect(canJoinEvents(score).allowed).toBe(tier.canJoin);
+    },
+  );
 });

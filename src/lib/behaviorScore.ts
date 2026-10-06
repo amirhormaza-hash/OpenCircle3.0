@@ -145,3 +145,54 @@ export function isProtectionExpired(
   const exceededScore = currentScore > 1050;
   return expired || exceededScore;
 }
+
+// ── Gating ────────────────────────────────────────────────────────────────────
+//
+// These thresholds mirror getTrustTier() above and the ones enforced in
+// migration 018. The database is the authority — a user cannot host or join by
+// patching the client — but checking here first means we can explain *why*
+// instead of surfacing a raw permission error.
+//
+// Keep these three in step with app_config (min_score_to_host,
+// min_score_to_join, ban_score_threshold) if you tune them in production.
+
+export const MIN_SCORE_TO_HOST = 900;
+export const MIN_SCORE_TO_JOIN = 800;
+export const BAN_SCORE_THRESHOLD = 500;
+
+export interface GateResult {
+  allowed: boolean;
+  /** Points still needed to clear the bar. 0 when already allowed. */
+  pointsNeeded: number;
+  /** User-facing explanation, or null when allowed. */
+  message: string | null;
+}
+
+const ALLOWED: GateResult = { allowed: true, pointsNeeded: 0, message: null };
+
+const RECOVERY_HINT =
+  'You can earn points back by attending events you join, showing up on time, and receiving good reviews.';
+
+/** Whether this score may create events (Casual and above). */
+export function canHostEvents(score: number): GateResult {
+  if (score >= MIN_SCORE_TO_HOST) return ALLOWED;
+  return {
+    allowed: false,
+    pointsNeeded: MIN_SCORE_TO_HOST - score,
+    message:
+      `Your behavior score is ${score}. You need ${MIN_SCORE_TO_HOST} to create events. ` +
+      RECOVERY_HINT,
+  };
+}
+
+/** Whether this score may join events (Flagged and above). */
+export function canJoinEvents(score: number): GateResult {
+  if (score >= MIN_SCORE_TO_JOIN) return ALLOWED;
+  return {
+    allowed: false,
+    pointsNeeded: MIN_SCORE_TO_JOIN - score,
+    message:
+      `Your behavior score is ${score}. You need ${MIN_SCORE_TO_JOIN} to join events. ` +
+      RECOVERY_HINT,
+  };
+}
