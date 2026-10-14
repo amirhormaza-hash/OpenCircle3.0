@@ -1,58 +1,97 @@
 /**
  * Pure rating calculation functions — no I/O, fully testable.
  *
- * Event Rating formula:
- *   R = (sum_actual + silent_count × 2.5) / (5 × (reviewer_count + silent_count / 2))
- *   score = R × 5   →  range [0.0, 5.0]
+ * Ratings run 1–10, where 5 is neutral: above 5 is positive, below 5 is
+ * negative. The scale changed from 1–5 in v1.0.2; migration 017 doubled every
+ * stored value, which maps the old scale onto the new one exactly (an old 4.47
+ * becomes 8.93), so historical ratings stay comparable with new ones.
  *
- * Silent attendees (verified but no review) count as half-weight 5★ reviews,
- * making the default assumption generous while still rewarding real engagement.
+ * Event rating formula:
+ *   score = (sum_actual + silent × MAX/2) / (reviewers + silent/2)
+ *
+ * Silent attendees (verified present but left no review) count as half-weight
+ * top-score reviews. That is deliberately generous — it assumes someone who
+ * showed up and said nothing had a fine time — and it is the same assumption
+ * the 1–5 scale made. Worth revisiting: under a scale where 5 means neutral,
+ * scoring silence as a perfect 10 pulls averages up harder than it used to.
  */
 
-export interface StarCounts {
-  1: number;
-  2: number;
-  3: number;
-  4: number;
-  5: number;
+export const MIN_RATING = 1;
+export const MAX_RATING = 10;
+
+/** Ratings at this value are neutral; above is positive, below is negative. */
+export const NEUTRAL_RATING = 5;
+
+export type RatingValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+
+/** How many reviewers gave each rating value. */
+export type RatingCounts = Record<RatingValue, number>;
+
+/** All-zero counts, for accumulating into. */
+export function emptyRatingCounts(): RatingCounts {
+  return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 };
+}
+
+/** True when `n` is a whole number inside the 1–10 scale. */
+export function isRatingValue(n: number): n is RatingValue {
+  return Number.isInteger(n) && n >= MIN_RATING && n <= MAX_RATING;
+}
+
+export type Sentiment = 'negative' | 'neutral' | 'positive';
+
+/**
+ * Which side of neutral a score falls on. Drives the colour of the rating
+ * slider and of any score we display.
+ */
+export function ratingSentiment(score: number): Sentiment {
+  if (score > NEUTRAL_RATING) return 'positive';
+  if (score < NEUTRAL_RATING) return 'negative';
+  return 'neutral';
+}
+
+/** Short word for a score, shown under the slider as the user drags it. */
+export function ratingLabel(score: number): string {
+  if (score >= 9) return 'Excellent';
+  if (score >= 7) return 'Good';
+  if (score > 5)  return 'Decent';
+  if (score === 5) return 'Neutral';
+  if (score >= 3) return 'Poor';
+  return 'Bad';
 }
 
 /**
- * Calculate the aggregate star rating for a completed event.
+ * Calculate the aggregate rating for a completed event.
  *
  * @param totalAttendees  Total geofence-verified attendees.
- * @param starCounts      How many reviewers gave each star value.
- * @returns               Score 0.0–5.0 rounded to 2 dp, or null when there
- *                        are zero reviews (caller should display "No reviews yet").
+ * @param counts          How many reviewers gave each rating value.
+ * @returns               Score 1.0–10.0 rounded to 2 dp, or null when there
+ *                        are zero reviews (caller shows "No reviews yet").
  */
 export function calculateEventRating(
   totalAttendees: number,
-  starCounts: StarCounts,
+  counts: RatingCounts,
 ): number | null {
   if (totalAttendees <= 0) return null;
 
-  const reviewerCount =
-    starCounts[1] + starCounts[2] + starCounts[3] + starCounts[4] + starCounts[5];
+  let reviewerCount = 0;
+  let sumActual = 0;
+  for (let value = MIN_RATING; value <= MAX_RATING; value++) {
+    const n = counts[value as RatingValue] ?? 0;
+    reviewerCount += n;
+    sumActual += value * n;
+  }
 
   if (reviewerCount === 0) return null; // "No reviews yet"
 
   const silentCount = Math.max(0, totalAttendees - reviewerCount);
 
-  const sumActual =
-    1 * starCounts[1] +
-    2 * starCounts[2] +
-    3 * starCounts[3] +
-    4 * starCounts[4] +
-    5 * starCounts[5];
-
-  // silent_count × (5/2) = silent half-weight 5★ contribution
-  const numerator   = sumActual + silentCount * 2.5;
-  const denominator = 5 * (reviewerCount + silentCount / 2);
+  // Silent attendees: half a reviewer each, scoring MAX.
+  const numerator = sumActual + silentCount * (MAX_RATING / 2);
+  const denominator = reviewerCount + silentCount / 2;
 
   if (denominator === 0) return null;
 
-  const score = (numerator / denominator) * 5;
-  return Number(score.toFixed(2));
+  return Number((numerator / denominator).toFixed(2));
 }
 
 /**
@@ -61,8 +100,8 @@ export function calculateEventRating(
  * Mode 1 – Bootstrap (3 ≤ n ≤ 10): simple average.
  * Mode 2 – Full     (n > 10):       60 % recent (last 10) + 40 % lifetime.
  *
- * @param allRatings  Every star rating received, ordered oldest → newest.
- * @returns           Score 0.0–5.0 rounded to 2 dp, or "New" when n < 3.
+ * @param allRatings  Every rating received, ordered oldest → newest.
+ * @returns           Score 1.0–10.0 rounded to 2 dp, or "New" when n < 3.
  */
 export function calculateUserRating(allRatings: number[]): number | 'New' {
   const n = allRatings.length;
@@ -76,11 +115,11 @@ export function calculateUserRating(allRatings: number[]): number | 'New' {
   }
 
   // Mode 2: weighted blend
-  const recent    = allRatings.slice(-10);
-  const old       = allRatings.slice(0, n - 10);
+  const recent = allRatings.slice(-10);
+  const old = allRatings.slice(0, n - 10);
 
   const recentAvg = recent.reduce((acc, v) => acc + v, 0) / 10;
-  const oldAvg    = old.reduce((acc, v) => acc + v, 0) / old.length;
+  const oldAvg = old.reduce((acc, v) => acc + v, 0) / old.length;
 
   const score = 0.4 * oldAvg + 0.6 * recentAvg;
   return Number(score.toFixed(2));

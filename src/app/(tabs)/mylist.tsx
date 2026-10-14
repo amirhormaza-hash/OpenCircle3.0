@@ -21,7 +21,8 @@ import AnimatedEmptyState from '../../components/AnimatedEmptyState';
 // Bottom-sheet modal with event image gallery, info boxes, and action buttons
 import EventDetailsModal, { actionButtonStyles } from '../../components/EventDetailsModal';
 import { supabase } from '../../lib/supabase/client';
-import { calculateEventRating } from '../../lib/ratingSystem';
+import { calculateEventRating, emptyRatingCounts, isRatingValue } from '../../lib/ratingSystem';
+import type { RatingCounts, RatingValue } from '../../lib/ratingSystem';
 import { isEventExpired, isInRatingWindow } from '../../lib/eventLifecycle';
 import { submitEventRating } from '../../lib/profileQueries';
 import { getPendingInviteEventIds, respondToInvite, markInviteLeft } from '../../lib/invitesQueries';
@@ -189,13 +190,14 @@ export default function MyList() {
     const usernameMap: Record<string, string> = {};
     (ownerResult.data || []).forEach((p: any) => { usernameMap[p.id] = p.username; });
 
-    type StarMap = { 1: number; 2: number; 3: number; 4: number; 5: number };
-    const starsByEvent: Record<string, StarMap> = {};
+    const ratingsByEvent: Record<string, RatingCounts> = {};
     const mineByEvent: Record<string, number> = {};
     (ratingsResult.data || []).forEach((r: any) => {
-      if (!starsByEvent[r.event_id]) starsByEvent[r.event_id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      if (r.stars >= 1 && r.stars <= 5) starsByEvent[r.event_id][r.stars as 1|2|3|4|5]++;
-      if (r.rater_id === user.id) mineByEvent[r.event_id] = r.stars;
+      const value = Number(r.stars);
+      if (!isRatingValue(value)) return;
+      if (!ratingsByEvent[r.event_id]) ratingsByEvent[r.event_id] = emptyRatingCounts();
+      ratingsByEvent[r.event_id][value]++;
+      if (r.rater_id === user.id) mineByEvent[r.event_id] = value;
     });
     setMyStarsByEvent(mineByEvent);
 
@@ -212,8 +214,8 @@ export default function MyList() {
         .map((img: any) => getImageUrl(img.image_path));
 
       const attendees = countMap[item.id] ?? 0;
-      const starCounts = starsByEvent[item.id] ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      const rating = calculateEventRating(attendees, starCounts);
+      const ratingCounts = ratingsByEvent[item.id] ?? emptyRatingCounts();
+      const rating = calculateEventRating(attendees, ratingCounts);
 
       return {
         ...item,

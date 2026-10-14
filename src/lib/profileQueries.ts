@@ -1,6 +1,12 @@
 import { supabase } from './supabase/client';
-import { calculateUserRating, calculateEventRating } from './ratingSystem';
-import type { StarCounts } from './ratingSystem';
+import {
+  calculateUserRating,
+  calculateEventRating,
+  emptyRatingCounts,
+  isRatingValue,
+} from './ratingSystem';
+import type { RatingCounts, RatingValue } from './ratingSystem';
+import { ratingAward } from './behaviorScore';
 
 // ── Existing helpers (unchanged) ─────────────────────────────────────────────
 
@@ -103,15 +109,16 @@ export async function fetchEventHistory(userId: string) {
       countByEvent[r.event_id] = (countByEvent[r.event_id] || 0) + 1;
     });
 
-    const starsByEvent: Record<string, StarCounts> = {};
+    const ratingsByEvent: Record<string, RatingCounts> = {};
     (ratingRows ?? []).forEach((r: { event_id: string; stars: number }) => {
-      if (!starsByEvent[r.event_id]) starsByEvent[r.event_id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      if (r.stars >= 1 && r.stars <= 5) starsByEvent[r.event_id][r.stars as keyof StarCounts]++;
+      if (!isRatingValue(r.stars)) return;
+      if (!ratingsByEvent[r.event_id]) ratingsByEvent[r.event_id] = emptyRatingCounts();
+      ratingsByEvent[r.event_id][r.stars]++;
     });
 
     map.forEach((event, id) => {
-      const starCounts = starsByEvent[id] ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      event.rating = calculateEventRating(countByEvent[id] ?? 0, starCounts);
+      const ratingCounts = ratingsByEvent[id] ?? emptyRatingCounts();
+      event.rating = calculateEventRating(countByEvent[id] ?? 0, ratingCounts);
     });
   }
 
@@ -150,11 +157,11 @@ export async function fetchSkillLevels(userId: string): Promise<Record<string, s
 // ── New: Event Rating helpers ─────────────────────────────────────────────────
 
 /**
- * Fetch the raw star counts for an event from verified attendees.
- * Returns { starCounts, totalAttendees, reviewerCount }.
+ * Fetch the raw rating counts for an event from verified attendees.
+ * Returns { ratingCounts, totalAttendees, reviewerCount }.
  */
 export async function fetchEventRatingData(eventId: string): Promise<{
-  starCounts:     StarCounts;
+  ratingCounts:   RatingCounts;
   totalAttendees: number;
   reviewerCount:  number;
 }> {
@@ -169,28 +176,31 @@ export async function fetchEventRatingData(eventId: string): Promise<{
       .eq('event_id', eventId),
   ]);
 
-  const starCounts: StarCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const ratingCounts = emptyRatingCounts();
   (ratings ?? []).forEach(({ stars }: { stars: number }) => {
-    if (stars >= 1 && stars <= 5) starCounts[stars as keyof StarCounts]++;
+    if (isRatingValue(stars)) ratingCounts[stars]++;
   });
 
   return {
-    starCounts,
+    ratingCounts,
     totalAttendees: totalAttendees ?? 0,
     reviewerCount:  ratings?.length ?? 0,
   };
 }
 
 /**
- * Submit a star rating for an event.  Only callable during the 24-hour
- * window after the event starts (while the event is still visible in the
- * app — see src/lib/eventLifecycle.ts).  Enforced server-side by the RLS
- * policy in migration 007.
+ * Submit a rating for an event, on the 1–10 scale.  Only callable during the
+ * 24-hour window after the event starts (while the event is still visible in
+ * the app — see src/lib/eventLifecycle.ts).  Enforced server-side by the RLS
+ * policy in migration 007, and the 1–10 range by migration 019.
+ *
+ * The column is still called `stars` for continuity with existing rows; it
+ * holds a 1–10 value since migration 019 doubled everything.
  */
 export async function submitEventRating(
   eventId: string,
   raterId: string,
-  stars:   1 | 2 | 3 | 4 | 5,
+  stars:   RatingValue,
 ): Promise<{ error: string | null; code: string | null }> {
   const { error } = await supabase
     .from('event_ratings')
@@ -336,13 +346,17 @@ export async function fetchRateableEvent(
 
 /**
  * Insert a user-to-user rating row and award behavior score points to both
- * the rater (leave_review) and the rated user (receive_4star / receive_5star).
+ * the rater (leave_review) and the rated user, when the rating was positive.
+ *
+ * The thresholds live in behaviorScore.ratingAward. On the 1–10 scale a 5 is
+ * neutral and a 4 is negative, so the old `score === 5 || score === 4` test
+ * would have paid out for exactly the reviews that should earn nothing.
  */
 export async function submitUserRating(
   raterId: string,
   ratedId: string,
   eventId: string,
-  score:   1 | 2 | 3 | 4 | 5,
+  score:   RatingValue,
   tags:    string[],
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
@@ -353,10 +367,9 @@ export async function submitUserRating(
 
   await addPoints(raterId, 'leave_review', { rated_user_id: ratedId, event_id: eventId });
 
-  if (score === 5) {
-    await addPoints(ratedId, 'receive_5star', { rater_id: raterId, event_id: eventId });
-  } else if (score === 4) {
-    await addPoints(ratedId, 'receive_4star', { rater_id: raterId, event_id: eventId });
+  const award = ratingAward(score);
+  if (award) {
+    await addPoints(ratedId, award, { rater_id: raterId, event_id: eventId });
   }
 
   await Promise.all([checkAchievements(raterId), checkAchievements(ratedId)]);

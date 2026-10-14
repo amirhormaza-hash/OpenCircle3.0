@@ -5,6 +5,11 @@ import {
   isProtectionExpired,
   POINT_VALUES,
   INAPPROPRIATE_ACTIONS,
+  ratingAward,
+  hostingAward,
+  POOR_HOSTING_RATING,
+  GOOD_HOSTING_RATING,
+  GREAT_HOSTING_RATING,
 } from '../behaviorScore';
 
 // =============================================================================
@@ -305,5 +310,69 @@ describe('score simulation', () => {
 
   it('host_event_above_4_5star (+35) adds more than host_event_above_4star (+20)', () => {
     expect(POINT_VALUES.host_event_above_4_5star).toBeGreaterThan(POINT_VALUES.host_event_above_4star);
+  });
+});
+
+// =============================================================================
+// Rating thresholds on the 1–10 scale
+//
+// These guard the v1.0.2 scale change. Under the old 1–5 code the award test
+// was `score === 5 || score === 4`; carried over verbatim that pays out for a
+// neutral 5 and a negative 4, which is the whole point of pinning it down.
+// =============================================================================
+
+describe('ratingAward', () => {
+  it('a perfect 10 earns the top bonus', () => {
+    expect(ratingAward(10)).toBe('receive_5star');
+  });
+
+  it('8 and 9 earn the smaller bonus', () => {
+    expect(ratingAward(9)).toBe('receive_4star');
+    expect(ratingAward(8)).toBe('receive_4star');
+  });
+
+  it('a neutral 5 earns nothing', () => {
+    expect(ratingAward(5)).toBeNull();
+  });
+
+  it('a 4 earns nothing — it is negative, not "nearly top marks"', () => {
+    expect(ratingAward(4)).toBeNull();
+  });
+
+  it('nothing below neutral earns points', () => {
+    for (let n = 1; n <= 5; n++) expect(ratingAward(n)).toBeNull();
+  });
+
+  it('mildly positive 6 and 7 earn nothing — the bar is 8', () => {
+    expect(ratingAward(6)).toBeNull();
+    expect(ratingAward(7)).toBeNull();
+  });
+});
+
+describe('hostingAward', () => {
+  it('9 and above earns the larger hosting bonus', () => {
+    expect(hostingAward(9)).toBe('host_event_above_4_5star');
+    expect(hostingAward(10)).toBe('host_event_above_4_5star');
+  });
+
+  it('8 to just under 9 earns the smaller hosting bonus', () => {
+    expect(hostingAward(8)).toBe('host_event_above_4star');
+    expect(hostingAward(8.9)).toBe('host_event_above_4star');
+  });
+
+  it('4 and below is penalised', () => {
+    expect(hostingAward(4)).toBe('hosted_below_2star');
+    expect(hostingAward(1)).toBe('hosted_below_2star');
+  });
+
+  it('the middle band is neither rewarded nor punished', () => {
+    expect(hostingAward(5)).toBeNull();
+    expect(hostingAward(6)).toBeNull();
+    expect(hostingAward(7.9)).toBeNull();
+  });
+
+  it('penalty and bonus bands cannot overlap', () => {
+    expect(POOR_HOSTING_RATING).toBeLessThan(GOOD_HOSTING_RATING);
+    expect(GOOD_HOSTING_RATING).toBeLessThan(GREAT_HOSTING_RATING);
   });
 });

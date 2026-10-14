@@ -40,6 +40,9 @@ export const POINT_VALUES = {
   event_chat_message:      2,   // capped at 5 rewarded msgs per event
   geofence_confirmed:      10,
   leave_review:            5,
+  // These two keys date from the 1–5 scale and are kept verbatim because
+  // behavior_score_log rows already reference them by name. What counts as
+  // "5 star" now lives in TOP_RATING / GOOD_RATING below, not in the key.
   receive_5star:           10,
   receive_4star:           5,
 
@@ -77,6 +80,55 @@ export const POINT_VALUES = {
 } as const;
 
 export type PointAction = keyof typeof POINT_VALUES;
+
+// ── Rating thresholds on the 1–10 scale ──────────────────────────────────────
+//
+// Before v1.0.2 the code asked `score === 5` and `score === 4` directly. On a
+// scale where 5 is neutral and 4 is negative, those same comparisons would
+// hand out points for mediocre and bad reviews, so every threshold is named
+// here instead of being written inline.
+//
+// The values are the old ones doubled: 5★ → 10, 4★ → 8, 2★ → 4, 4.5★ → 9.
+
+/** A perfect review. Earns the larger bonus. */
+export const TOP_RATING = 10;
+
+/** Floor for a clearly positive review. Earns the smaller bonus. */
+export const GOOD_RATING = 8;
+
+/** At or below this, a host is penalised for the event they ran. */
+export const POOR_HOSTING_RATING = 4;
+
+/** Event aggregate a host must beat to earn the hosting bonus. */
+export const GOOD_HOSTING_RATING = 8;
+
+/** Event aggregate for the larger hosting bonus. */
+export const GREAT_HOSTING_RATING = 9;
+
+/**
+ * Which point action a peer rating earns the person being rated, or null when
+ * the rating is neutral or negative and nothing is awarded.
+ */
+export function ratingAward(score: number): PointAction | null {
+  if (score >= TOP_RATING) return 'receive_5star';
+  if (score >= GOOD_RATING) return 'receive_4star';
+  return null;
+}
+
+/**
+ * Which point action a host earns for an event's aggregate rating. Returns
+ * null in the broad middle, where hosting is neither rewarded nor punished.
+ *
+ * Nothing calls this yet — the hosting actions are defined in POINT_VALUES but
+ * never awarded. It is here so that wiring them up later does not reintroduce
+ * hardcoded 1–5 thresholds.
+ */
+export function hostingAward(eventRating: number): PointAction | null {
+  if (eventRating >= GREAT_HOSTING_RATING) return 'host_event_above_4_5star';
+  if (eventRating >= GOOD_HOSTING_RATING) return 'host_event_above_4star';
+  if (eventRating <= POOR_HOSTING_RATING) return 'hosted_below_2star';
+  return null;
+}
 
 // ── Deduction categorisation ─────────────────────────────────────────────────
 

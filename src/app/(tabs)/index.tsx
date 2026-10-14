@@ -27,7 +27,8 @@ import OpenRing from '../../components/OpenRing';
 import { colors, fonts } from '../../constants/colors';
 import { eventVisibilityCutoffISO } from '../../lib/eventLifecycle';
 import { supabase } from '../../lib/supabase/client';
-import { calculateEventRating } from '../../lib/ratingSystem';
+import { calculateEventRating, emptyRatingCounts, isRatingValue } from '../../lib/ratingSystem';
+import type { RatingCounts } from '../../lib/ratingSystem';
 import { useBadge } from '../../context/BadgeContext';
 import * as Location from 'expo-location';
 
@@ -241,12 +242,13 @@ export default function Index() {
       ownerAvatarMap[p.id] = p.profile_image_url ?? null;
     });
 
-    // Build star-counts per event for rating calculation
-    type StarMap = { 1: number; 2: number; 3: number; 4: number; 5: number };
-    const starsByEvent: Record<string, StarMap> = {};
+    // Build rating counts per event for the aggregate calculation
+    const ratingsByEvent: Record<string, RatingCounts> = {};
     (ratingsResult.data || []).forEach((r: any) => {
-      if (!starsByEvent[r.event_id]) starsByEvent[r.event_id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      if (r.stars >= 1 && r.stars <= 5) starsByEvent[r.event_id][r.stars as 1|2|3|4|5]++;
+      const value = Number(r.stars);
+      if (!isRatingValue(value)) return;
+      if (!ratingsByEvent[r.event_id]) ratingsByEvent[r.event_id] = emptyRatingCounts();
+      ratingsByEvent[r.event_id][value]++;
     });
 
     const formattedEvents: EventItem[] = (data || [])
@@ -261,8 +263,8 @@ export default function Index() {
           .map((img) => getImageUrl(img.image_path));
 
         const attendees = countMap[item.id] ?? 0;
-        const starCounts = starsByEvent[item.id] ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-        const rating = calculateEventRating(attendees, starCounts);
+        const ratingCounts = ratingsByEvent[item.id] ?? emptyRatingCounts();
+        const rating = calculateEventRating(attendees, ratingCounts);
 
         return {
           ...item,
