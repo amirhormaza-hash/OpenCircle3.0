@@ -36,6 +36,7 @@
     "expo": "~55.0.28",
     "expo-blur": "~55.0.16",
     "expo-constants": "~55.0.17",
+    "expo-dev-client": "~55.0.40",
     "expo-device": "~55.0.19",
     "expo-file-system": "~55.0.24",
     "expo-font": "~55.0.8",
