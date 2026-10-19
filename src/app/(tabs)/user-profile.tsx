@@ -45,6 +45,8 @@ import {
 } from '../../lib/friendsQueries';
 import Toast from 'react-native-toast-message';
 import { formatRating } from '../../lib/ratingSystem';
+import type { RatingValue } from '../../lib/ratingSystem';
+import RatingSlider from '../../components/RatingSlider';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -133,7 +135,9 @@ export default function UserProfileScreen() {
   // Rating flow
   const [rateableEvent, setRateableEvent] = useState<{ id: string; name: string } | null>(null);
   const [showModal, setShowModal]         = useState(false);
-  const [selectedStars, setSelectedStars] = useState(0);
+  // null until the user drags — submitting is blocked so nobody files a
+  // default rating they never chose.
+  const [selectedScore, setSelectedScore] = useState<number | null>(null);
   const [selectedTags, setSelectedTags]   = useState<Set<string>>(new Set());
   const [submitting, setSubmitting]       = useState(false);
 
@@ -277,13 +281,13 @@ export default function UserProfileScreen() {
   }
 
   async function handleSubmit() {
-    if (!me || !rateableEvent || selectedStars === 0) return;
+    if (!me || !rateableEvent || selectedScore == null) return;
     setSubmitting(true);
     const { error } = await submitUserRating(
       me.id,
       userId,
       rateableEvent.id,
-      selectedStars as 1 | 2 | 3 | 4 | 5,
+      selectedScore as RatingValue,
       [...selectedTags],
     );
     setSubmitting(false);
@@ -581,22 +585,9 @@ export default function UserProfileScreen() {
             {rateableEvent && (
               <Text style={styles.modalSub} numberOfLines={1}>From: {rateableEvent.name}</Text>
             )}
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map(n => (
-                <TouchableOpacity key={n} onPress={() => setSelectedStars(n)} activeOpacity={0.7} style={styles.starBtn}>
-                  <Ionicons
-                    name={n <= selectedStars ? 'star' : 'star-outline'}
-                    size={36}
-                    color={n <= selectedStars ? '#FFB800' : '#2E2E40'}
-                  />
-                </TouchableOpacity>
-              ))}
+            <View style={styles.sliderWrap}>
+              <RatingSlider value={selectedScore} onChange={setSelectedScore} />
             </View>
-            {selectedStars > 0 && (
-              <Text style={styles.starLabel}>
-                {['Poor', 'Fair', 'Good', 'Great', 'Excellent'][selectedStars - 1]}
-              </Text>
-            )}
             <Text style={styles.tagsHeading}>Add tags (optional)</Text>
             <View style={styles.tagsWrapModal}>
               {REPUTATION_TAGS.map(tag => {
@@ -618,9 +609,9 @@ export default function UserProfileScreen() {
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.submitBtn, (selectedStars === 0 || submitting) && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, (selectedScore == null || submitting) && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
-                disabled={selectedStars === 0 || submitting}
+                disabled={selectedScore == null || submitting}
                 activeOpacity={0.85}
               >
                 {submitting
@@ -768,9 +759,7 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, backgroundColor: colors.line, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontFamily: fonts.heading, color: colors.text, textAlign: 'center', marginBottom: 4 },
   modalSub: { fontSize: 13, fontFamily: fonts.body, color: colors.muted, textAlign: 'center', marginBottom: 20 },
-  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 6 },
-  starBtn: { padding: 4 },
-  starLabel: { fontSize: 14, fontFamily: fonts.bold, color: colors.star, textAlign: 'center', marginBottom: 20 },
+  sliderWrap: { paddingHorizontal: 8, marginBottom: 20 },
   tagsHeading: {
     fontSize: 12, fontFamily: fonts.bold, color: colors.ember,
     textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12,

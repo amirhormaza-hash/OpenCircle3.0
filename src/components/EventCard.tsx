@@ -18,17 +18,11 @@ import Animated, {
   withSequence,
   withSpring,
   withDelay,
-  runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import {
-  MIN_RATING,
-  MAX_RATING,
-  formatRating,
-  ratingLabel,
-  ratingSentiment,
-} from '../lib/ratingSystem';
+import { MAX_RATING, formatRating } from '../lib/ratingSystem';
 import type { RatingValue } from '../lib/ratingSystem';
+import RatingSlider, { sentimentColor } from './RatingSlider';
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   sports: require('../../assets/images/sports.jpg'),
@@ -391,22 +385,10 @@ interface Props {
   onViewInvitees?: (event: Event) => void;
 }
 
-/** Colour for a score, by which side of neutral it falls on. */
-function sentimentColor(score: number): string {
-  switch (ratingSentiment(score)) {
-    case 'positive': return colors.success;
-    case 'negative': return colors.danger;
-    default:         return colors.muted;
-  }
-}
-
-const THUMB = 26;
-const STEPS = MAX_RATING - MIN_RATING; // 9 gaps between 10 positions
-
 /**
- * 1–10 rating slider. Unlike the old star row, picking a value and submitting
- * it are separate: dragging is exploratory, so the rating is only written when
- * the user commits with the button.
+ * Event rating row. The slider itself lives in RatingSlider so this and the
+ * rate-a-user modal on a profile stay identical; what belongs here is the
+ * commit step and the already-rated state.
  */
 function RateEventRow({
   myStars,
@@ -416,61 +398,16 @@ function RateEventRow({
   onRate?: (stars: RatingValue) => void | Promise<void>;
 }) {
   const rated = myStars != null;
-  // Start at neutral so the slider does not suggest an opinion the user has
-  // not formed yet.
-  const [value, setValue] = useState<number>(myStars ?? 5);
+  // null until the user drags, so the slider never suggests an opinion they
+  // have not formed.
+  const [value, setValue] = useState<number | null>(myStars ?? null);
   const [submitting, setSubmitting] = useState(false);
-  const [trackWidth, setTrackWidth] = useState(0);
 
   const locked = rated || submitting || !onRate;
-  const usable = Math.max(0, trackWidth - THUMB);
-  const shown = myStars ?? value;
-  const tint = sentimentColor(shown);
-
-  // Mirrors `value` for the gesture worklet, which cannot read React state.
-  const live = useSharedValue(shown);
-
-  function commitValue(next: number) {
-    setValue((prev) => {
-      if (prev !== next) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return next;
-    });
-  }
-
-  // x → nearest whole rating. Kept as a worklet so dragging stays on the UI
-  // thread; only the snapped result crosses back to JS.
-  const pan = Gesture.Pan()
-    .enabled(!locked && usable > 0)
-    .minDistance(0)
-    .onBegin((e) => {
-      'worklet';
-      const ratio = Math.min(1, Math.max(0, (e.x - THUMB / 2) / usable));
-      const next = Math.round(MIN_RATING + ratio * STEPS);
-      live.value = next;
-      runOnJS(commitValue)(next);
-    })
-    .onUpdate((e) => {
-      'worklet';
-      const ratio = Math.min(1, Math.max(0, (e.x - THUMB / 2) / usable));
-      const next = Math.round(MIN_RATING + ratio * STEPS);
-      if (next !== live.value) {
-        live.value = next;
-        runOnJS(commitValue)(next);
-      }
-    });
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: withSpring(((live.value - MIN_RATING) / STEPS) * usable, { damping: 18, stiffness: 220 }) },
-    ],
-  }));
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: withSpring(THUMB / 2 + ((live.value - MIN_RATING) / STEPS) * usable, { damping: 18, stiffness: 220 }),
-  }));
+  const tint = value != null ? sentimentColor(value) : colors.muted;
 
   async function submit() {
-    if (locked) return;
+    if (locked || value == null) return;
     setSubmitting(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
@@ -484,42 +421,23 @@ function RateEventRow({
     <View style={rateStyles.wrap}>
       <Text style={rateStyles.label}>{rated ? 'Thanks for rating!' : 'How was it?'}</Text>
 
-      <View style={rateStyles.readout}>
-        <Text style={[rateStyles.score, { color: tint }]}>{shown}</Text>
-        <Text style={rateStyles.outOf}>/ {MAX_RATING}</Text>
-      </View>
-      <Text style={[rateStyles.word, { color: tint }]}>{ratingLabel(shown)}</Text>
-
-      <GestureDetector gesture={pan}>
-        <View
-          style={rateStyles.track}
-          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-        >
-          <View style={rateStyles.rail} />
-          <Animated.View style={[rateStyles.fill, { backgroundColor: tint }, fillStyle]} />
-          {/* Neutral marker: the point where the meaning flips. */}
-          <View style={[rateStyles.midTick, { left: THUMB / 2 + usable / 2 - 1 }]} />
-          <Animated.View
-            style={[rateStyles.thumb, { borderColor: tint }, thumbStyle, locked && rateStyles.thumbLocked]}
-          />
-        </View>
-      </GestureDetector>
-
-      <View style={rateStyles.scaleRow}>
-        <Text style={rateStyles.scaleEnd}>{MIN_RATING}</Text>
-        <Text style={rateStyles.scaleMid}>neutral</Text>
-        <Text style={rateStyles.scaleEnd}>{MAX_RATING}</Text>
-      </View>
+      <RatingSlider value={value} onChange={setValue} disabled={locked} />
 
       {!rated && (
         <TouchableOpacity
-          style={[rateStyles.submit, { backgroundColor: tint }, submitting && rateStyles.submitBusy]}
-          disabled={locked}
+          style={[
+            rateStyles.submit,
+            { backgroundColor: tint },
+            (submitting || value == null) && rateStyles.submitBusy,
+          ]}
+          disabled={locked || value == null}
           onPress={submit}
         >
           {submitting
             ? <ActivityIndicator size="small" color="#0F0F13" />
-            : <Text style={rateStyles.submitText}>Submit {value}/{MAX_RATING}</Text>}
+            : <Text style={rateStyles.submitText}>
+                {value == null ? 'Pick a rating' : `Submit ${value}/${MAX_RATING}`}
+              </Text>}
         </TouchableOpacity>
       )}
     </View>
@@ -543,76 +461,6 @@ const rateStyles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-  },
-  readout: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  score: {
-    fontSize: 34,
-    fontFamily: fonts.bold,
-  },
-  outOf: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: colors.muted,
-  },
-  word: {
-    fontSize: 13,
-    fontFamily: fonts.bold,
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  track: {
-    height: THUMB,
-    justifyContent: 'center',
-  },
-  rail: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    marginHorizontal: THUMB / 2,
-  },
-  fill: {
-    position: 'absolute',
-    left: 0,
-    height: 6,
-    borderRadius: 3,
-  },
-  midTick: {
-    position: 'absolute',
-    width: 2,
-    height: 12,
-    borderRadius: 1,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  thumb: {
-    position: 'absolute',
-    width: THUMB,
-    height: THUMB,
-    borderRadius: THUMB / 2,
-    backgroundColor: colors.card,
-    borderWidth: 3,
-  },
-  thumbLocked: {
-    opacity: 0.6,
-  },
-  scaleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  scaleEnd: {
-    fontSize: 11,
-    fontFamily: fonts.regular,
-    color: colors.mutedDeep,
-  },
-  scaleMid: {
-    fontSize: 11,
-    fontFamily: fonts.regular,
-    color: colors.mutedDeep,
   },
   submit: {
     marginTop: 10,
