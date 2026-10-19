@@ -74,21 +74,23 @@ describe('calculateEventRating', () => {
     });
   });
 
-  describe('spec examples, carried over from the 1–5 scale', () => {
-    it('10 attendees — 1×2, 4×10, 5 silent → 8.93 (was 4.47 at half scale)', () => {
-      // sum         = 2 + 40          = 42
-      // numerator   = 42 + (5 × 5)    = 67
-      // denominator = 5 + 2.5         = 7.5
-      // score       = 67 / 7.5        ≈ 8.9333 → 8.93
-      expect(calculateEventRating(10, counts({ 2: 1, 10: 4 }))).toBe(8.93);
+  describe('events with silent attendees', () => {
+    it('10 attendees — 1×2, 4×10, 5 silent → 7.27', () => {
+      // sum         = 2 + 40            = 42
+      // numerator   = 42 + (5 × 2.5)    = 54.5
+      // denominator = 5 + 2.5           = 7.5
+      // score       = 54.5 / 7.5        ≈ 7.2667 → 7.27
+      expect(calculateEventRating(10, counts({ 2: 1, 10: 4 }))).toBe(7.27);
     });
 
-    it('200 attendees — 2×2, 8×8, 15×10, 175 silent → 9.72 (was 4.86)', () => {
-      // sum         = 4 + 64 + 150       = 218
-      // numerator   = 218 + (175 × 5)    = 1093
-      // denominator = 25 + 87.5          = 112.5
-      // score       = 1093 / 112.5       ≈ 9.7156 → 9.72
-      expect(calculateEventRating(200, counts({ 2: 2, 8: 8, 10: 15 }))).toBe(9.72);
+    it('200 attendees — 2×2, 8×8, 15×10, 175 silent → 5.83', () => {
+      // sum         = 4 + 64 + 150        = 218
+      // numerator   = 218 + (175 × 2.5)   = 655.5
+      // denominator = 25 + 87.5           = 112.5
+      // score       = 655.5 / 112.5       ≈ 5.8267 → 5.83
+      // Overwhelmingly silent: the handful of real reviews barely move it off
+      // neutral, which is the point.
+      expect(calculateEventRating(200, counts({ 2: 2, 8: 8, 10: 15 }))).toBe(5.83);
     });
   });
 
@@ -101,23 +103,47 @@ describe('calculateEventRating', () => {
       expect(calculateEventRating(1, counts({ 10: 1 }))).toBe(10.0);
     });
 
-    it('one 1-star review plus one silent attendee → 4.0', () => {
-      // numerator   = 1 + (1 × 5) = 6
-      // denominator = 1 + 0.5     = 1.5
-      // score       = 6 / 1.5     = 4.0
-      // The silent attendee drags a lone bad review up to just under neutral.
-      expect(calculateEventRating(2, counts({ 1: 1 }))).toBe(4.0);
+    it('one 1-star review plus one silent attendee → 2.33', () => {
+      // numerator   = 1 + (1 × 2.5) = 3.5
+      // denominator = 1 + 0.5       = 1.5
+      // score       = 3.5 / 1.5     ≈ 2.33
+      // Silence softens a lone bad review but does not rescue it.
+      expect(calculateEventRating(2, counts({ 1: 1 }))).toBe(2.33);
     });
   });
 
   describe('medium events', () => {
     it('mixed 4/6/8 ratings with silents, rounds to 2dp', () => {
       // 20 attendees: 2×4, 3×6, 5×8, 10 silent
-      // sum         = 8 + 18 + 40   = 66
-      // numerator   = 66 + (10 × 5) = 116
-      // denominator = 10 + 5        = 15
-      // score       = 116 / 15      ≈ 7.7333 → 7.73
-      expect(calculateEventRating(20, counts({ 4: 2, 6: 3, 8: 5 }))).toBe(7.73);
+      // sum         = 8 + 18 + 40     = 66
+      // numerator   = 66 + (10 × 2.5) = 91
+      // denominator = 10 + 5          = 15
+      // score       = 91 / 15         ≈ 6.0667 → 6.07
+      expect(calculateEventRating(20, counts({ 4: 2, 6: 3, 8: 5 }))).toBe(6.07);
+    });
+  });
+
+  describe('silence pulls toward neutral, not toward perfect', () => {
+    it('silent attendees drag a perfect set of reviews down', () => {
+      // 1 reviewer at 10, 1 silent → (10 + 2.5) / 1.5 ≈ 8.33
+      expect(calculateEventRating(2, counts({ 10: 1 }))).toBe(8.33);
+    });
+
+    it('silent attendees lift an awful set of reviews up', () => {
+      // 1 reviewer at 1, 1 silent → (1 + 2.5) / 1.5 ≈ 2.33
+      expect(calculateEventRating(2, counts({ 1: 1 }))).toBe(2.33);
+    });
+
+    it('a neutral review plus silence stays exactly neutral', () => {
+      // (5 + 2.5) / 1.5 = 5.0 — silence agrees with neutral, so nothing moves
+      expect(calculateEventRating(2, counts({ 5: 1 }))).toBe(5.0);
+    });
+
+    it('converges toward neutral as silence dominates', () => {
+      const few = calculateEventRating(2, counts({ 10: 1 }))!;
+      const many = calculateEventRating(100, counts({ 10: 1 }))!;
+      expect(many).toBeLessThan(few);
+      expect(many).toBeCloseTo(NEUTRAL_RATING, 0);
     });
   });
 

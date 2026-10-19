@@ -7,13 +7,17 @@
  * becomes 8.93), so historical ratings stay comparable with new ones.
  *
  * Event rating formula:
- *   score = (sum_actual + silent × MAX/2) / (reviewers + silent/2)
+ *   score = (sum_actual + silent × NEUTRAL/2) / (reviewers + silent/2)
  *
  * Silent attendees (verified present but left no review) count as half-weight
- * top-score reviews. That is deliberately generous — it assumes someone who
- * showed up and said nothing had a fine time — and it is the same assumption
- * the 1–5 scale made. Worth revisiting: under a scale where 5 means neutral,
- * scoring silence as a perfect 10 pulls averages up harder than it used to.
+ * NEUTRAL reviews. The 1–5 scale scored them as a perfect 5, and carrying that
+ * over literally would have made every silent attendee a 10 — treating "said
+ * nothing" as "loved it", which is a claim the data does not support. Silence
+ * is absence of evidence, so it pulls toward the middle instead.
+ *
+ * They stay at half weight: someone who turned up and said nothing is weaker
+ * evidence than someone who bothered to rate, so they should not drown out
+ * the people who did.
  */
 
 export const MIN_RATING = 1;
@@ -96,8 +100,8 @@ export function calculateEventRating(
 
   const silentCount = Math.max(0, totalAttendees - reviewerCount);
 
-  // Silent attendees: half a reviewer each, scoring MAX.
-  const numerator = sumActual + silentCount * (MAX_RATING / 2);
+  // Silent attendees: half a reviewer each, scoring NEUTRAL.
+  const numerator = sumActual + silentCount * (NEUTRAL_RATING / 2);
   const denominator = reviewerCount + silentCount / 2;
 
   if (denominator === 0) return null;

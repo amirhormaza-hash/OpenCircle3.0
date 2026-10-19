@@ -78,12 +78,16 @@ Two things worth knowing about that migration:
 On the new scale those are neutral and negative. Thresholds now live in
 `behaviorScore.ratingAward` (top = 10, good = 8).
 
-**Open design question:** silent attendees — people who attended but left no
-review — count as half-weight top-score reviews. That is a direct carry-over
-from the 1-5 scale, but it now means silence scores as a perfect 10, which
-pulls averages up hard when 5 is explicitly neutral. Deliberately left as-is so
-a scale change did not become a policy change. Changing it is one line in
-`calculateEventRating` and one in the migration's trigger.
+**Silent attendees count as neutral.** Someone verified present who left no
+review counts as a *half-weight 5*, not a half-weight 10. Migration 019 carried
+the 1-5 behaviour over literally, which asserted that everyone who said nothing
+loved the event; `020_silent_attendee_neutral.sql` (applied 2026-10-19) changed
+it so silence pulls toward the middle instead. Half weight is deliberate — a
+silent attendee is weaker evidence than someone who bothered to rate.
+
+Keep `calculateEventRating` and the `recompute_event_rating` trigger in step;
+the client computes the same figure for events whose aggregate has not been
+written back yet.
 
 ### Share feature — NOT STARTED
 
