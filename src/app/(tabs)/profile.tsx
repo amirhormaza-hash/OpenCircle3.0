@@ -39,6 +39,7 @@ import OpenRing from '../../components/OpenRing';
 import { BADGE_DEFINITIONS } from '../../constants/badges';
 import { categoryColor, colors, fonts } from '../../constants/colors';
 import { getPendingRequestCount } from '../../lib/friendsQueries';
+import { formatRating } from '../../lib/ratingSystem';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -50,16 +51,18 @@ const LEVEL_TO_PERCENT: Record<string, number> = {
 };
 
 // ── Trust score pill — color bracket changes by score ───────────────────────
+// Thresholds are the old 1–5 brackets doubled for the 1–10 scale, so the
+// bands a user already sits in do not shift under them.
 function TrustScorePill({ score }: { score: number }) {
   let color = colors.muted;
   let label = 'New';
-  if (score >= 4.5)      { color = colors.success; label = 'Excellent'; }
-  else if (score >= 4.0) { color = colors.ember;   label = 'Great'; }
-  else if (score >= 3.0) { color = colors.star;    label = 'Good'; }
+  if (score >= 9.0)      { color = colors.success; label = 'Excellent'; }
+  else if (score >= 8.0) { color = colors.ember;   label = 'Great'; }
+  else if (score >= 6.0) { color = colors.star;    label = 'Good'; }
 
   return (
     <View style={[tpStyles.pill, { borderColor: color + '40', backgroundColor: color + '18' }]}>
-      <Text style={[tpStyles.text, { color }]}>★ {score.toFixed(1)} · {label}</Text>
+      <Text style={[tpStyles.text, { color }]}>{formatRating(score)} · {label}</Text>
     </View>
   );
 }
@@ -353,7 +356,7 @@ export default function ProfileScreen() {
                   {repScore !== null && repScore !== 'New'
                     ? (
                       <View style={[tpStyles.pill, { borderColor: colors.star + '40', backgroundColor: colors.star + '18' }]}>
-                        <Text style={[tpStyles.text, { color: colors.star }]}>★ {Number(repScore).toFixed(1)} rep</Text>
+                        <Text style={[tpStyles.text, { color: colors.star }]}>{formatRating(Number(repScore))} rep</Text>
                       </View>
                     ) : (
                       <TrustScorePill score={profile?.trust_score ?? 0} />

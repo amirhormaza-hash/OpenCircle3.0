@@ -305,7 +305,7 @@ export default function MyList() {
 
   // Returns true when the rating is saved (or already existed) — the card
   // uses that to animate itself off the list.
-  async function handleRate(eventId: string, stars: 1 | 2 | 3 | 4 | 5): Promise<boolean> {
+  async function handleRate(eventId: string, stars: RatingValue): Promise<boolean> {
     if (!currentUserId) return false;
     const { error, code } = await submitEventRating(eventId, currentUserId, stars);
     if (error) {

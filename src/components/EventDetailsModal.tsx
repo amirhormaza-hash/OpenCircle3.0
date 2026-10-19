@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import ReportBlockSheet, { type ReportTarget } from './ReportBlockSheet';
+import { formatRating } from '../lib/ratingSystem';
 
 export type ModalEventItem = {
   id: string;
@@ -234,7 +235,7 @@ export default function EventDetailsModal({
               <View style={styles.infoRow}>
                 <Ionicons name="star" size={16} color="#FFB800" style={styles.infoIcon} />
                 <Text style={styles.infoValue}>
-                  {event?.rating != null ? `${event.rating.toFixed(2)} ★` : 'No reviews yet'}
+                  {event?.rating != null ? formatRating(event.rating) : 'No reviews yet'}
                 </Text>
               </View>
             </View>

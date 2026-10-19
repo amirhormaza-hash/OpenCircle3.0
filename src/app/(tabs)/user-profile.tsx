@@ -44,6 +44,7 @@ import {
   type FriendState,
 } from '../../lib/friendsQueries';
 import Toast from 'react-native-toast-message';
+import { formatRating } from '../../lib/ratingSystem';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -54,15 +55,17 @@ const LEVEL_TO_PERCENT: Record<string, number> = {
   Expert: 100,
 };
 
+// Keep these brackets in step with TrustScorePill in (tabs)/profile.tsx —
+// the old 1–5 thresholds doubled for the 1–10 scale.
 function TrustScorePill({ score }: { score: number }) {
   let color = '#7a7a9a';
   let label = 'New';
-  if (score >= 4.5)      { color = '#22C55E'; label = 'Excellent'; }
-  else if (score >= 4.0) { color = '#FF6B00'; label = 'Great'; }
-  else if (score >= 3.0) { color = '#FFB800'; label = 'Good'; }
+  if (score >= 9.0)      { color = '#22C55E'; label = 'Excellent'; }
+  else if (score >= 8.0) { color = '#FF6B00'; label = 'Great'; }
+  else if (score >= 6.0) { color = '#FFB800'; label = 'Good'; }
   return (
     <View style={[tpStyles.pill, { borderColor: color + '40', backgroundColor: color + '18' }]}>
-      <Text style={[tpStyles.text, { color }]}>★ {score.toFixed(1)} · {label}</Text>
+      <Text style={[tpStyles.text, { color }]}>{formatRating(score)} · {label}</Text>
     </View>
   );
 }
@@ -393,7 +396,7 @@ export default function UserProfileScreen() {
                   {repScore !== null && repScore !== 'New'
                     ? (
                       <View style={[tpStyles.pill, { borderColor: '#FFB80040', backgroundColor: '#FFB80018' }]}>
-                        <Text style={[tpStyles.text, { color: '#FFB800' }]}>★ {Number(repScore).toFixed(1)} rep</Text>
+                        <Text style={[tpStyles.text, { color: '#FFB800' }]}>{formatRating(Number(repScore))} rep</Text>
                       </View>
                     ) : (
                       <TrustScorePill score={profile.trust_score ?? 0} />

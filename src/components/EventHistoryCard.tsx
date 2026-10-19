@@ -4,6 +4,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { categoryColor, colors, fonts } from '../constants/colors';
+import { formatRating } from '../lib/ratingSystem';
 
 const CATEGORY_EMOJI: Record<string, string> = {
   Sports:     '⚽',
@@ -46,7 +47,7 @@ export default function EventHistoryCard({ event }: Props) {
           {dateStr}{event.address ? ` · ${event.address}` : ''}
         </Text>
         {event.rating != null && (
-          <Text style={styles.rating}>★ {event.rating.toFixed(2)}</Text>
+          <Text style={styles.rating}>★ {formatRating(event.rating)}</Text>
         )}
       </View>
       <View style={[styles.pill, event.isHosted ? styles.pillHosted : styles.pillAttended]}>

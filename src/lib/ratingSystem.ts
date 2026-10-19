@@ -49,6 +49,17 @@ export function ratingSentiment(score: number): Sentiment {
   return 'neutral';
 }
 
+/**
+ * Render a score for display, always with its denominator.
+ *
+ * The "/ 10" is not decoration. A bare "9.2" next to a star glyph reads as
+ * out-of-five to anyone who has used any other app, and the old UI did exactly
+ * that — so every surface that shows a score spells out the scale.
+ */
+export function formatRating(score: number, decimals = 1): string {
+  return `${score.toFixed(decimals)} / ${MAX_RATING}`;
+}
+
 /** Short word for a score, shown under the slider as the user drags it. */
 export function ratingLabel(score: number): string {
   if (score >= 9) return 'Excellent';
