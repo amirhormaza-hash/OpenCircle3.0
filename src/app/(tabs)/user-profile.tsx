@@ -586,7 +586,7 @@ export default function UserProfileScreen() {
               <Text style={styles.modalSub} numberOfLines={1}>From: {rateableEvent.name}</Text>
             )}
             <View style={styles.sliderWrap}>
-              <RatingSlider value={selectedScore} onChange={setSelectedScore} />
+              <RatingSlider value={selectedScore} onChange={setSelectedScore} compact />
             </View>
             <Text style={styles.tagsHeading}>Add tags (optional)</Text>
             <View style={styles.tagsWrapModal}>
