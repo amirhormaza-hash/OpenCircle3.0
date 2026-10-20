@@ -7,21 +7,33 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "production",
+      "env": {
+        "APP_VARIANT": "development"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "APP_VARIANT": "production"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview"
+      "environment": "preview",
+      "env": {
+        "APP_VARIANT": "production"
+      }
     },
     "simulator": {
       "distribution": "internal",
       "environment": "production",
+      "env": {
+        "APP_VARIANT": "production"
+      },
       "ios": {
         "simulator": true
       }
