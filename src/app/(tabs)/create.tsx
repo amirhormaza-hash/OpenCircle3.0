@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   Text,
@@ -26,9 +26,9 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { screenFields } from '../../lib/contentFilter';
+import { usePlacesAutocomplete } from '../../lib/usePlacesAutocomplete';
 
 const CATEGORY_OPTIONS = [
   'Sports', 'Party', 'Food', 'Study', 'Networking', 'Ride', 'Outdoors', 'Zen', 'Other',
@@ -49,9 +49,6 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   Zen: 'moon-outline',
   Other: 'ellipsis-horizontal-outline',
 };
-
-// Google Places autocomplete result shape
-type Suggestion = { description: string; place_id: string };
 
 type UploadedImage = {
   image_url: string;
@@ -81,65 +78,19 @@ export default function CreateEventScreen(): React.JSX.Element {
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [pickedLatLon, setPickedLatLon] = useState<{ lat: number; lon: number } | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-
-  type Suggestion = { description: string; place_id: string };
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
-
-  useEffect(() => {
-    Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status !== 'granted') return;
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
-        setUserLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
-      }).catch(() => {});
-    }).catch(() => {});
-  }, []);
+  const {
+    suggestions,
+    showSuggestions,
+    pickedLatLon,
+    pickSuggestion,
+    resolveTypedAddress,
+    reveal,
+    dismiss,
+  } = usePlacesAutocomplete(address);
 
   useEffect(() => {
     if (user?.id) getFriends(user.id).then(setFriends).catch(() => {});
   }, [user?.id]);
-
-  const fetchSuggestions = useCallback(async (text: string) => {
-    if (text.length < 3) { setSuggestions([]); return; }
-    try {
-      const locationParam = userLocation
-        ? `&location=${userLocation.lat},${userLocation.lon}&radius=50000`
-        : '';
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&components=country:us${locationParam}&key=${PLACES_KEY}`
-      );
-      const json = await res.json();
-      setSuggestions(json.predictions ?? []);
-      setShowSuggestions(true);
-    } catch (_) {
-      setSuggestions([]);
-    }
-  }, [userLocation]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(address), 400);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [address, fetchSuggestions]);
-
-  async function pickSuggestion(s: Suggestion) {
-    setAddress(s.description);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    try {
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${s.place_id}&fields=geometry&key=${PLACES_KEY}`
-      );
-      const json = await res.json();
-      const loc = json.result?.geometry?.location;
-      if (loc) setPickedLatLon({ lat: loc.lat, lon: loc.lng });
-    } catch (_) {}
-  }
 
   function formatDate(date: Date): string {
     return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -308,13 +259,13 @@ export default function CreateEventScreen(): React.JSX.Element {
       let latitude: number | null = pickedLatLon?.lat ?? null;
       let longitude: number | null = pickedLatLon?.lon ?? null;
       if (latitude === null) {
-        try {
-          const geocoded = await Location.geocodeAsync(address.trim());
-          if (geocoded.length > 0) {
-            latitude = geocoded[0].latitude;
-            longitude = geocoded[0].longitude;
-          }
-        } catch (_) {}
+        // Typed an address without picking a suggestion — resolve it through
+        // Google first so the coordinates match the text's source.
+        const resolved = await resolveTypedAddress(address);
+        if (resolved) {
+          latitude = resolved.lat;
+          longitude = resolved.lon;
+        }
       }
 
       const { data: createdEvent, error: eventError } = await supabase
@@ -446,8 +397,8 @@ export default function CreateEventScreen(): React.JSX.Element {
               <InputRow icon="location-outline">
                 <TextInput
                   value={address}
-                  onChangeText={(t) => { setAddress(t); setShowSuggestions(true); }}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onChangeText={(t) => { setAddress(t); reveal(); }}
+                  onBlur={dismiss}
                   placeholder="e.g. Miami, FL"
                   placeholderTextColor="#5A5A78"
                   style={styles.input}
@@ -456,13 +407,23 @@ export default function CreateEventScreen(): React.JSX.Element {
               {showSuggestions && suggestions.length > 0 && (
                 <FlatList
                   data={suggestions}
-                  keyExtractor={(_, i) => String(i)}
+                  keyExtractor={(item) => item.place_id}
                   style={styles.suggestionList}
                   keyboardShouldPersistTaps="handled"
                   renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.suggestionItem} onPress={() => pickSuggestion(item)}>
+                    <TouchableOpacity
+                      style={styles.suggestionItem}
+                      onPress={async () => setAddress(await pickSuggestion(item))}
+                    >
                       <Ionicons name="location-outline" size={14} color="#7878A0" style={{ marginRight: 8 }} />
-                      <Text style={styles.suggestionText} numberOfLines={2}>{item.description}</Text>
+                      {/* Venue first, context underneath — the same split
+                          Google Maps shows, from structured_formatting. */}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.suggestionText} numberOfLines={1}>{item.mainText}</Text>
+                        {!!item.secondaryText && (
+                          <Text style={styles.suggestionSubText} numberOfLines={1}>{item.secondaryText}</Text>
+                        )}
+                      </View>
                     </TouchableOpacity>
                   )}
                 />
@@ -805,7 +766,11 @@ const styles = StyleSheet.create({
   suggestionText: {
     color: '#F0F0FA',
     fontSize: 14,
-    flex: 1,
+  },
+  suggestionSubText: {
+    color: '#7878A0',
+    fontSize: 12,
+    marginTop: 1,
   },
   selectorButton: {
     flexDirection: 'row',

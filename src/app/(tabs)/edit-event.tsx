@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   Text,
@@ -20,10 +20,10 @@ import { supabase } from '../../lib/supabase/client';
 import { uploadEventImage } from '../../lib/supabase/storage';
 import { useAuth } from '../../context/AuthContext';
 import Toast from 'react-native-toast-message';
-import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { screenFields } from '../../lib/contentFilter';
+import { usePlacesAutocomplete } from '../../lib/usePlacesAutocomplete';
 
 const MAX_IMAGES = 6;
 type ExistingImage = { id: string; path: string; url: string; position: number };
@@ -35,9 +35,6 @@ const CATEGORY_OPTIONS = [
 const LEVEL_OPTIONS = [
   'For All', 'Newbie', 'Beginner', 'Intermediate', 'Advanced', 'Expert',
 ] as const;
-
-// Google Places autocomplete result shape
-type Suggestion = { description: string; place_id: string };
 
 // Fields sent to Supabase when saving an edited event
 type EventUpdatePayload = {
@@ -76,29 +73,21 @@ export default function EditEventScreen(): React.JSX.Element {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [pickedLatLon, setPickedLatLon] = useState<{ lat: number; lon: number } | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-
   const { user } = useAuth();
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [newImageUris, setNewImageUris] = useState<string[]>([]);
   const [removedImages, setRemovedImages] = useState<{ id: string; path: string }[]>([]);
   const totalImages = existingImages.length + newImageUris.length;
 
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? '';
-
-  useEffect(() => {
-    Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status !== 'granted') return;
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
-        setUserLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
-      }).catch(() => {});
-    }).catch(() => {});
-  }, []);
+  const {
+    suggestions,
+    showSuggestions,
+    pickedLatLon,
+    pickSuggestion,
+    resolveTypedAddress,
+    reveal,
+    dismiss,
+  } = usePlacesAutocomplete(address);
 
   // Load the event's existing images
   useEffect(() => {
@@ -149,45 +138,6 @@ export default function EditEventScreen(): React.JSX.Element {
     setNewImageUris((prev) => prev.filter((u) => u !== uri));
   }
 
-  const fetchSuggestions = useCallback(async (text: string) => {
-    if (text.length < 3) { setSuggestions([]); return; }
-    try {
-      const locationParam = userLocation
-        ? `&location=${userLocation.lat},${userLocation.lon}&radius=50000`
-        : '';
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&components=country:us${locationParam}&key=${PLACES_KEY}`
-      );
-      const json = await res.json();
-      setSuggestions(json.predictions ?? []);
-      setShowSuggestions(true);
-    } catch (_) {
-      setSuggestions([]);
-    }
-  }, [userLocation]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(address), 400);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [address, fetchSuggestions]);
-
-  async function pickSuggestion(s: Suggestion) {
-    setAddress(s.description);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    try {
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${s.place_id}&fields=geometry&key=${PLACES_KEY}`
-      );
-      const json = await res.json();
-      const loc = json.result?.geometry?.location;
-      if (loc) setPickedLatLon({ lat: loc.lat, lon: loc.lng });
-    } catch (_) {
-      // coords unavailable, will fall back to geocoding on submit
-    }
-  }
-
   function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
     setShowDatePicker(false);
     if (event.type === 'dismissed' || !selectedDate) return;
@@ -224,6 +174,15 @@ export default function EditEventScreen(): React.JSX.Element {
 
     setSaving(true);
     try {
+      // If the address was edited by hand rather than picked from the list,
+      // re-resolve it. Without this the row keeps the coordinates of the
+      // previous address while displaying the new one, and distance sorting
+      // quietly points people at the wrong place.
+      let coords = pickedLatLon;
+      if (!coords && address.trim() !== (params.address ?? '').trim()) {
+        coords = await resolveTypedAddress(address);
+      }
+
       const updateData: EventUpdatePayload = {
         name: name.trim(),
         address: address.trim(),
@@ -232,7 +191,7 @@ export default function EditEventScreen(): React.JSX.Element {
         number_of_guests: guestCount,
         category,
         level,
-        ...(pickedLatLon && { latitude: pickedLatLon.lat, longitude: pickedLatLon.lon }),
+        ...(coords && { latitude: coords.lat, longitude: coords.lon }),
       };
 
       const { error } = await supabase
@@ -344,8 +303,8 @@ export default function EditEventScreen(): React.JSX.Element {
           <View style={styles.addressWrapper}>
             <TextInput
               value={address}
-              onChangeText={(t) => { setAddress(t); setShowSuggestions(true); }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onChangeText={(t) => { setAddress(t); reveal(); }}
+              onBlur={dismiss}
               placeholder="Miami"
               placeholderTextColor="#5A5A78"
               style={styles.input}
@@ -353,12 +312,20 @@ export default function EditEventScreen(): React.JSX.Element {
             {showSuggestions && suggestions.length > 0 && (
               <FlatList
                 data={suggestions}
-                keyExtractor={(_, i) => String(i)}
+                keyExtractor={(item) => item.place_id}
                 style={styles.suggestionList}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.suggestionItem} onPress={() => pickSuggestion(item)}>
-                    <Text style={styles.suggestionText} numberOfLines={2}>{item.description}</Text>
+                  <TouchableOpacity
+                    style={styles.suggestionItem}
+                    onPress={async () => setAddress(await pickSuggestion(item))}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.suggestionText} numberOfLines={1}>{item.mainText}</Text>
+                      {!!item.secondaryText && (
+                        <Text style={styles.suggestionSubText} numberOfLines={1}>{item.secondaryText}</Text>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 )}
               />
@@ -530,4 +497,5 @@ const styles = StyleSheet.create({
     borderBottomColor: '#2E2E40',
   },
   suggestionText: { color: '#F0F0FA', fontSize: 14 },
+  suggestionSubText: { color: '#7878A0', fontSize: 12, marginTop: 1 },
 });
