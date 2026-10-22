@@ -46,7 +46,7 @@ import {
 import Toast from 'react-native-toast-message';
 import { formatRating } from '../../lib/ratingSystem';
 import type { RatingValue } from '../../lib/ratingSystem';
-import RatingSlider from '../../components/RatingSlider';
+import RatingDial from '../../components/RatingDial';
 
 const LEVEL_TO_PERCENT: Record<string, number> = {
   'For All': 10,
@@ -586,7 +586,7 @@ export default function UserProfileScreen() {
               <Text style={styles.modalSub} numberOfLines={1}>From: {rateableEvent.name}</Text>
             )}
             <View style={styles.sliderWrap}>
-              <RatingSlider value={selectedScore} onChange={setSelectedScore} compact />
+              <RatingDial value={selectedScore} onChange={setSelectedScore} compact surface="#1A1A24" />
             </View>
             <Text style={styles.tagsHeading}>Add tags (optional)</Text>
             <View style={styles.tagsWrapModal}>

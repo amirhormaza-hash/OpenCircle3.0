@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MAX_RATING, formatRating } from '../lib/ratingSystem';
 import type { RatingValue } from '../lib/ratingSystem';
-import RatingSlider, { sentimentColor } from './RatingSlider';
+import RatingDial, { sentimentColor } from './RatingDial';
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   sports: require('../../assets/images/sports.jpg'),
@@ -386,7 +386,7 @@ interface Props {
 }
 
 /**
- * Event rating row. The slider itself lives in RatingSlider so this and the
+ * Event rating row. The dial itself lives in RatingDial so this and the
  * rate-a-user modal on a profile stay identical; what belongs here is the
  * commit step and the already-rated state.
  */
@@ -421,7 +421,7 @@ function RateEventRow({
     <View style={rateStyles.wrap}>
       <Text style={rateStyles.label}>{rated ? 'Thanks for rating!' : 'How was it?'}</Text>
 
-      <RatingSlider value={value} onChange={setValue} disabled={locked} />
+      <RatingDial value={value} onChange={setValue} disabled={locked} surface="#15151C" />
 
       {!rated && (
         <TouchableOpacity
