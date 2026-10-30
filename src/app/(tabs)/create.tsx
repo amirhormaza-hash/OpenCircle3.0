@@ -78,6 +78,14 @@ export default function CreateEventScreen(): React.JSX.Element {
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  /** Only one option drawer open at a time — the whole point is a short screen. */
+  const [openChoice, setOpenChoice] = useState<'category' | 'level' | 'visibility' | null>(null);
+
+  // Date and time always hold a value, so readiness is about the four fields
+  // someone actually has to fill in.
+  const required = [name, address, description, numberOfGuests];
+  const readyCount = required.filter((f) => f.trim().length > 0).length;
   const {
     suggestions,
     showSuggestions,
@@ -340,10 +348,19 @@ export default function CreateEventScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
+          {/* Header. The progress line answers the only question a long form
+              raises — how much of this is left — without a step counter
+              implying an order the fields do not actually have. */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Event</Text>
-            <Text style={styles.subtitle}>Fill in the details below</Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${(readyCount / required.length) * 100}%` }]} />
+            </View>
+            <Text style={styles.subtitle}>
+              {readyCount === required.length
+                ? 'Everything filled in — set a time and you’re done'
+                : `${readyCount} of ${required.length} details filled in`}
+            </Text>
           </View>
 
           {/* ── Photos ── */}
@@ -453,88 +470,109 @@ export default function CreateEventScreen(): React.JSX.Element {
             </InputRow>
           </SectionCard>
 
-          {/* ── Who can join ── */}
-          <SectionCard icon="lock-closed-outline" title="Who can join">
-            <View style={styles.pillGrid}>
-              <TouchableOpacity
-                style={[styles.pill, visibility === 'public' && styles.pillActive]}
-                onPress={() => setVisibility('public')}
-              >
-                <Ionicons name="earth-outline" size={14} color={visibility === 'public' ? '#fff' : '#7878A0'} style={{ marginRight: 5 }} />
-                <Text style={[styles.pillText, visibility === 'public' && styles.pillTextActive]}>Public</Text>
+          {/* ── When ── */}
+          <SectionCard icon="calendar-outline" title="When">
+            {/* Date and time are one decision, so they read as one row. */}
+            <View style={styles.whenRow}>
+              <TouchableOpacity style={[styles.selectorButton, styles.whenHalf]} onPress={() => setShowDatePicker(true)}>
+                <Ionicons name="calendar-outline" size={17} color={colors.ember} style={{ marginRight: 8 }} />
+                <Text style={styles.selectorButtonText} numberOfLines={1}>{formatDate(eventDate)}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pill, visibility === 'friends' && styles.pillActive]}
-                onPress={() => setVisibility('friends')}
-              >
-                <Ionicons name="people-outline" size={14} color={visibility === 'friends' ? '#fff' : '#7878A0'} style={{ marginRight: 5 }} />
-                <Text style={[styles.pillText, visibility === 'friends' && styles.pillTextActive]}>Friends only</Text>
+              <TouchableOpacity style={[styles.selectorButton, styles.whenHalf]} onPress={openTimePicker}>
+                <Ionicons name="time-outline" size={17} color={colors.ember} style={{ marginRight: 8 }} />
+                <Text style={styles.selectorButtonText} numberOfLines={1}>{formatTime(eventDate)}</Text>
               </TouchableOpacity>
             </View>
+          </SectionCard>
+
+          {/* ── Options ──
+              Three pickers that all have a sensible default. As full sections
+              they took up most of the screen's length for decisions most
+              hosts never change, so they collapse to their current value and
+              open one at a time. */}
+          <SectionCard icon="options-outline" title="Options">
+            <ChoiceRow
+              icon="grid-outline"
+              label="Category"
+              value={category}
+              open={openChoice === 'category'}
+              onToggle={() => setOpenChoice(openChoice === 'category' ? null : 'category')}
+            >
+              <View style={styles.pillGrid}>
+                {CATEGORY_OPTIONS.map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    style={[styles.pill, category === item && styles.pillActive]}
+                    onPress={() => { setCategory(item); setOpenChoice(null); }}
+                  >
+                    <Ionicons
+                      name={CATEGORY_ICONS[item]}
+                      size={14}
+                      color={category === item ? '#fff' : '#7878A0'}
+                      style={{ marginRight: 5 }}
+                    />
+                    <Text style={[styles.pillText, category === item && styles.pillTextActive]}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ChoiceRow>
+
+            <ChoiceRow
+              icon="bar-chart-outline"
+              label="Level"
+              value={level}
+              open={openChoice === 'level'}
+              onToggle={() => setOpenChoice(openChoice === 'level' ? null : 'level')}
+            >
+              <View style={styles.pillGrid}>
+                {LEVEL_OPTIONS.map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    style={[styles.pill, level === item && styles.pillActiveLevel]}
+                    onPress={() => { setLevel(item); setOpenChoice(null); }}
+                  >
+                    <Text style={[styles.pillText, level === item && styles.pillTextActiveLevel]}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ChoiceRow>
+
+            <ChoiceRow
+              icon="lock-closed-outline"
+              label="Who can join"
+              value={visibility === 'public' ? 'Anyone' : 'Friends only'}
+              open={openChoice === 'visibility'}
+              onToggle={() => setOpenChoice(openChoice === 'visibility' ? null : 'visibility')}
+              last
+            >
+              <View style={styles.pillGrid}>
+                <TouchableOpacity
+                  style={[styles.pill, visibility === 'public' && styles.pillActive]}
+                  onPress={() => setVisibility('public')}
+                >
+                  <Ionicons name="earth-outline" size={14} color={visibility === 'public' ? '#fff' : '#7878A0'} style={{ marginRight: 5 }} />
+                  <Text style={[styles.pillText, visibility === 'public' && styles.pillTextActive]}>Anyone</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.pill, visibility === 'friends' && styles.pillActive]}
+                  onPress={() => setVisibility('friends')}
+                >
+                  <Ionicons name="people-outline" size={14} color={visibility === 'friends' ? '#fff' : '#7878A0'} style={{ marginRight: 5 }} />
+                  <Text style={[styles.pillText, visibility === 'friends' && styles.pillTextActive]}>Friends only</Text>
+                </TouchableOpacity>
+              </View>
+            </ChoiceRow>
 
             {visibility === 'friends' && (
               <View style={styles.inviteInfoBox}>
-                <Ionicons name="send-outline" size={16} color="#FF6B00" style={{ marginRight: 8 }} />
+                <Ionicons name="send-outline" size={16} color={colors.ember} style={{ marginRight: 8 }} />
                 <Text style={styles.inviteInfoText}>
                   {friends.length === 0
                     ? 'You have no friends yet. Add friends from their profile to invite them.'
-                    : `This event will be sent to all your friends (${friends.length}). They can accept or reject.`}
+                    : `Goes to all ${friends.length} of your friends. They can accept or decline.`}
                 </Text>
               </View>
             )}
-          </SectionCard>
-
-          {/* ── Category ── */}
-          <SectionCard icon="grid-outline" title="Category">
-            <View style={styles.pillGrid}>
-              {CATEGORY_OPTIONS.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[styles.pill, category === item && styles.pillActive]}
-                  onPress={() => setCategory(item)}
-                >
-                  <Ionicons
-                    name={CATEGORY_ICONS[item]}
-                    size={14}
-                    color={category === item ? '#fff' : '#7878A0'}
-                    style={{ marginRight: 5 }}
-                  />
-                  <Text style={[styles.pillText, category === item && styles.pillTextActive]}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </SectionCard>
-
-          {/* ── Level ── */}
-          <SectionCard icon="bar-chart-outline" title="Level">
-            <View style={styles.pillGrid}>
-              {LEVEL_OPTIONS.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[styles.pill, level === item && styles.pillActiveLevel]}
-                  onPress={() => setLevel(item)}
-                >
-                  <Text style={[styles.pillText, level === item && styles.pillTextActiveLevel]}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </SectionCard>
-
-          {/* ── Schedule ── */}
-          <SectionCard icon="calendar-outline" title="Schedule">
-            <FieldLabel text="Date *" />
-            <TouchableOpacity style={styles.selectorButton} onPress={() => setShowDatePicker(true)}>
-              <Ionicons name="calendar-outline" size={18} color="#FF6B00" style={{ marginRight: 10 }} />
-              <Text style={styles.selectorButtonText}>{formatDate(eventDate)}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A55" />
-            </TouchableOpacity>
-
-            <FieldLabel text="Time *" />
-            <TouchableOpacity style={styles.selectorButton} onPress={openTimePicker}>
-              <Ionicons name="time-outline" size={18} color="#FF6B00" style={{ marginRight: 10 }} />
-              <Text style={styles.selectorButtonText}>{formatTime(eventDate)}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A55" />
-            </TouchableOpacity>
           </SectionCard>
 
           {showDatePicker && (
@@ -614,6 +652,37 @@ export default function CreateEventScreen(): React.JSX.Element {
 
 // ── Reusable components ────────────────────────────────────────────────────
 
+/**
+ * A choice that already has a sensible default: shows what is currently set
+ * and opens only when someone wants to change it.
+ */
+function ChoiceRow({ icon, label, value, open, onToggle, last, children }: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  value: string;
+  open: boolean;
+  onToggle: () => void;
+  last?: boolean;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <View style={[styles.choiceRow, last && styles.choiceRowLast]}>
+      <TouchableOpacity style={styles.choiceHead} onPress={onToggle} activeOpacity={0.7}>
+        <Ionicons name={icon} size={16} color={colors.muted} style={{ marginRight: 10 }} />
+        <Text style={styles.choiceLabel}>{label}</Text>
+        <Text style={styles.choiceValue} numberOfLines={1}>{value}</Text>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={15}
+          color={colors.mutedDeep}
+          style={{ marginLeft: 6 }}
+        />
+      </TouchableOpacity>
+      {open && <View style={styles.choiceBody}>{children}</View>}
+    </View>
+  );
+}
+
 function SectionCard({ icon, title, children }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   title: string;
@@ -671,6 +740,55 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: '#5A5A78',
     marginTop: 4,
+  },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.ember,
+  },
+
+  whenRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  whenHalf: {
+    flex: 1,
+    marginBottom: 0,
+  },
+
+  choiceRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  choiceRowLast: {
+    borderBottomWidth: 0,
+  },
+  choiceHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  choiceLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: colors.textSoft,
+  },
+  choiceValue: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.text,
+    maxWidth: 150,
+  },
+  choiceBody: {
+    paddingBottom: 14,
   },
   sectionCard: {
     backgroundColor: '#1A1A24',
